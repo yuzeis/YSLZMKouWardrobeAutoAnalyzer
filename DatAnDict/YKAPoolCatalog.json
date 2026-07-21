@@ -7,8 +7,8 @@
     "import_format": "plain JSON array"
   },
   "game_catalog": {
-    "sha256": "F4F649254738E9DA269AD2314ACB41FC20A00DF29DF3263874BDF02AC24493BC",
-    "fashion_catalog_count": 9389
+    "sha256": "01577A460786FB65978EAA9A11B9511726CF659BEFE3F937D2CD8FF17D536F18",
+    "fashion_catalog_count": 9530
   },
   "mapping_policy": {
     "verified": "exact dress name or near-exact unique OCR evidence",
@@ -17,7 +17,7 @@
     "status_scope": "ownership plus installed static palette metadata and observed wardrobe palette/evolution fields; intent always fails closed",
     "full_status": "emitted from a complete image-slot mapping or exact static suite membership, independent of legacy detail-image availability",
     "mark_scope": "each owned suite member is marked after the detail-image part order has been cross-validated against 114 complete collages",
-    "suite_id_encoding": "FashionSuite type-1 item IDs decode as 2 * fashion_index; all 6404 installed members resolve after decoding",
+    "suite_id_encoding": "FashionSuite type-1 item IDs decode as 2 * fashion_index; all 6504 installed members resolve after decoding",
     "slot_order": "fashion part order with tattoos after special accessories; reproduced all 114 complete suite-backed collages",
     "coordinate_model": "normalized four-column centers scaled to the target image width, preserving the mini-program intrinsic-width marker offset",
     "lottery_pool_id": "first three active lottery_cfg suit_id values matched uniquely to the release suite_id, plus explicit legacy exceptions",

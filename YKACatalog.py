@@ -15,10 +15,13 @@ from typing import Any, Iterator
 
 PACKAGE_MAGIC = bytes.fromhex("ef23ca4d")
 PACKAGE_HEADER_BYTES = 300
+# Current 2026-07-21 package layout prepends a small v1 table before the
+# Fashion and FashionSuite BCFG streams.
+PACKAGE_LEADING_STREAMS = 1
 FASHION_SCHEMA_INDEX = 3637
 FASHION_SUITE_SCHEMA_INDEX = 990
-EXPECTED_FASHION_TABLE = (9, 9389)
-EXPECTED_FASHION_SUITE_TABLE = (2, 930)
+EXPECTED_FASHION_TABLE = (9, 9530)
+EXPECTED_FASHION_SUITE_TABLE = (2, 943)
 
 FASHION_TYPE_NAMES = {
     1: "发型",
@@ -284,6 +287,16 @@ def _parse_suite(suite_id: int, row: bytes) -> dict[str, Any]:
     }
 
 
+def _inflate_current_catalog_tables(raw: bytes) -> tuple[bytes, bytes, int]:
+    """Read the fixed table order used by the currently installed game build."""
+    offset = PACKAGE_HEADER_BYTES
+    for _ in range(PACKAGE_LEADING_STREAMS):
+        _, offset = _inflate_at(raw, offset)
+    fashion_blob, offset = _inflate_at(raw, offset)
+    suite_blob, package_end = _inflate_at(raw, offset)
+    return fashion_blob, suite_blob, package_end
+
+
 def load_fashion_catalog(path: Path) -> FashionCatalog:
     try:
         raw = path.read_bytes()
@@ -294,8 +307,7 @@ def load_fashion_catalog(path: Path) -> FashionCatalog:
     if int.from_bytes(raw[4:12], "little") != len(raw):
         raise CatalogDecodeError("data.png declared length does not match file size")
 
-    fashion_blob, next_offset = _inflate_at(raw, PACKAGE_HEADER_BYTES)
-    suite_blob, suite_end = _inflate_at(raw, next_offset)
+    fashion_blob, suite_blob, suite_end = _inflate_current_catalog_tables(raw)
     fashion_data, fashion_index = _parse_table(
         fashion_blob,
         index_offset=FASHION_SCHEMA_INDEX,

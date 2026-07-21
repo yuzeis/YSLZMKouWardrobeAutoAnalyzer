@@ -1,0 +1,12 @@
+-r YKARequirementsLock.txt
+altgraph==0.17.5
+iniconfig==2.3.0
+packaging==26.2
+pefile==2023.2.7
+pluggy==1.6.0
+Pygments==2.20.0
+pyinstaller==6.16.0
+pyinstaller-hooks-contrib==2026.6
+pytest==8.4.2
+pywin32-ctypes==0.2.3
+setuptools==83.0.0

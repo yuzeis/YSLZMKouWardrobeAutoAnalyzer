@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
+from YKABusiness import _analyze_photo_info
+from YKAProtocol import GameMessage
 from YKAWechatImport import (
     ImportDataError,
+    _photo_snapshot_ids,
     generate_import_code_from_report,
 )
 
@@ -155,6 +158,60 @@ def _generate(
 def _rows_by_key(code: str) -> dict[str, list[object]]:
     rows = json.loads(code)
     return {row[0]: row for row in rows}
+
+
+def test_photo_snapshot_requires_explicit_zero_partial_flags() -> None:
+    photo_info = {
+        "status": "observed_present",
+        "completeness": True,
+        "partial_flag": 0,
+        "records": [
+            {
+                "complete": True,
+                "partial_flag": 0,
+                "photo_ids": [123],
+            }
+        ],
+    }
+
+    assert _photo_snapshot_ids(photo_info) == ({123}, True)
+
+    missing_top_flag = dict(photo_info)
+    missing_top_flag.pop("partial_flag")
+    assert _photo_snapshot_ids(missing_top_flag) == (set(), False)
+
+    float_top_flag = dict(photo_info)
+    float_top_flag["partial_flag"] = 0.0
+    assert _photo_snapshot_ids(float_top_flag) == (set(), False)
+
+    null_record_flag = dict(photo_info)
+    null_record_flag["records"] = [dict(photo_info["records"][0])]
+    null_record_flag["records"][0]["partial_flag"] = None
+    assert _photo_snapshot_ids(null_record_flag) == (set(), False)
+
+    float_record_flag = dict(photo_info)
+    float_record_flag["records"] = [dict(photo_info["records"][0])]
+    float_record_flag["records"][0]["partial_flag"] = -0.0
+    assert _photo_snapshot_ids(float_record_flag) == (set(), False)
+
+
+def test_photo_analysis_normalizes_missing_field4_to_complete_zero() -> None:
+    photo_info = _analyze_photo_info(
+        [
+            GameMessage(
+                command_id=637,
+                payload=b"\x12\x02\x08\x7b",
+                frame_offset=0,
+                source="direct",
+            )
+        ]
+    )
+
+    assert photo_info["status"] == "observed_present"
+    assert photo_info["completeness"] is True
+    assert photo_info["partial_flag"] == 0
+    assert photo_info["records"][0]["complete"] is True
+    assert photo_info["records"][0]["partial_flag"] == 0
 
 
 def test_complete_737_snapshot_writes_nonzero_ordinary_draw_count(

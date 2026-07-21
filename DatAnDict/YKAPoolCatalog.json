@@ -3,7 +3,9 @@
   "mini_program": {
     "name": "抠池记录",
     "embedded_app_version": "1.1.7",
-    "app_service_sha256": "3B45A656493D7823509CB1E08EEE5A5D449442F4E56AEF799168220E57A594DB",
+    "package_revision": 21,
+    "wxapkg_sha256": "3A0AC0F33306F350248421232F38BBABC1F6E072EED067305165F4F9767B5337",
+    "app_service_sha256": "2C3CDAF2978AB52385C2CC1A3CBF9DCDCDBC4C83D236F52942FB59D4A0AF859A",
     "import_format": "plain JSON array"
   },
   "game_catalog": {
@@ -21,14 +23,246 @@
     "slot_order": "fashion part order with tattoos after special accessories; reproduced all 114 complete suite-backed collages",
     "coordinate_model": "normalized four-column centers scaled to the target image width, preserving the mini-program intrinsic-width marker offset",
     "lottery_pool_id": "first three active lottery_cfg suit_id values matched uniquely to the release suite_id, plus explicit legacy exceptions",
-    "lottery_count_basis": "146 = 142 unique suite matches (including two current pool 81 matches) + 4 newly resolved special exceptions",
+    "lottery_count_basis": "148 = previous 146 mapped rows + two current pool 82 matches (lx29 and pp29)",
     "background_scene_id": "unique OCR-to-installed lock name, or explicit manual confirmation"
   },
-  "pool_count": 325,
+  "pool_count": 329,
   "confidence_counts": {
-    "verified": 199
+    "verified": 203
   },
   "pools": [
+    {
+      "key": "lx29",
+      "name": "修罗",
+      "att_type": "attlx",
+      "piece_count": 14,
+      "configured_piece_count": 14,
+      "notz": false,
+      "main_fashion_ids": [
+        12321
+      ],
+      "main_requirement": "any",
+      "mapping_confidence": "verified",
+      "mapping_evidence": {
+        "basis": "fashion_suite_main_item",
+        "suite_id": 33670,
+        "suite_name": "修罗归鞘",
+        "suite_resolution": "pool_name_unique_suite_substring"
+      },
+      "piece_fashion_ids": [],
+      "piece_mapping_confidence": "unmapped",
+      "piece_mapping_evidence": {
+        "basis": "none"
+      },
+      "piece_marks": [],
+      "image_geometry": {
+        "source_width": null,
+        "source_height": null,
+        "source": "unavailable",
+        "slot_centers": []
+      },
+      "suite_id": 33670,
+      "suite_name": "修罗归鞘",
+      "suite_fashion_ids": [
+        12585,
+        12321,
+        13470,
+        13493,
+        13488,
+        13893,
+        13990,
+        13149,
+        13515,
+        13823,
+        13876,
+        13897,
+        13860,
+        13513
+      ],
+      "status_fashions": [
+        {
+          "fashion_id": 12585,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 12321,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13470,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13493,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13488,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13893,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13990,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13149,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13515,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13823,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13876,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13897,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13860,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        },
+        {
+          "fashion_id": 13513,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30582
+        }
+      ],
+      "suite_piece_count": 14,
+      "suite_mapping_confidence": "verified",
+      "suite_mapping_evidence": {
+        "basis": "installed_fashion_suite_exact_unique",
+        "slot_order": "membership_only"
+      },
+      "lottery_pool_id": 82
+    },
+    {
+      "key": "pp29",
+      "name": "占心契",
+      "att_type": "attpp",
+      "piece_count": 9,
+      "configured_piece_count": 9,
+      "notz": true,
+      "main_fashion_ids": [
+        13858
+      ],
+      "main_requirement": "any",
+      "mapping_confidence": "verified",
+      "mapping_evidence": {
+        "basis": "fashion_suite_main_item",
+        "suite_id": 33671,
+        "suite_name": "占心契",
+        "suite_resolution": "pool_name_exact_suite"
+      },
+      "piece_fashion_ids": [],
+      "piece_mapping_confidence": "unmapped",
+      "piece_mapping_evidence": {
+        "basis": "none"
+      },
+      "piece_marks": [],
+      "image_geometry": {
+        "source_width": null,
+        "source_height": null,
+        "source": "unavailable",
+        "slot_centers": []
+      },
+      "suite_id": 33671,
+      "suite_name": "占心契",
+      "suite_fashion_ids": [
+        13830,
+        13858,
+        14651,
+        14630,
+        14665,
+        14611,
+        14603,
+        14616,
+        14645,
+        14659
+      ],
+      "status_fashions": [
+        {
+          "fashion_id": 13830,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 13858,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14651,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14630,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14665,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14611,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14603,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14616,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14645,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        },
+        {
+          "fashion_id": 14659,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 30584
+        }
+      ],
+      "suite_piece_count": 10,
+      "suite_mapping_confidence": "verified",
+      "suite_mapping_evidence": {
+        "basis": "pool_name_exact_suite",
+        "slot_order": "membership_only"
+      },
+      "lottery_pool_id": 82
+    },
     {
       "key": "wxz29",
       "name": "珐琅",
@@ -46107,6 +46341,110 @@
       "lottery_pool_id": 3
     },
     {
+      "key": "ml8",
+      "name": "星月神谕",
+      "att_type": "attml",
+      "piece_count": null,
+      "configured_piece_count": null,
+      "notz": false,
+      "main_fashion_ids": [
+        13989
+      ],
+      "main_requirement": "any",
+      "mapping_confidence": "verified",
+      "mapping_evidence": {
+        "basis": "fashion_suite_main_item",
+        "suite_id": 33673,
+        "suite_name": "星月神谕",
+        "suite_resolution": "pool_name_exact_suite"
+      },
+      "piece_fashion_ids": [],
+      "piece_mapping_confidence": "unmapped",
+      "piece_mapping_evidence": {
+        "basis": "none"
+      },
+      "piece_marks": [],
+      "image_geometry": {
+        "source_width": null,
+        "source_height": null,
+        "source": "unavailable",
+        "slot_centers": []
+      },
+      "suite_id": 33673,
+      "suite_name": "星月神谕",
+      "suite_fashion_ids": [
+        14030,
+        13989,
+        14362,
+        14346,
+        14381,
+        15111,
+        14409,
+        14389,
+        14371,
+        14392
+      ],
+      "status_fashions": [
+        {
+          "fashion_id": 14030,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 13989,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14362,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14346,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14381,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 15111,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14409,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14389,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14371,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14392,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        }
+      ],
+      "suite_piece_count": 10,
+      "suite_mapping_confidence": "verified",
+      "suite_mapping_evidence": {
+        "basis": "pool_name_exact_suite",
+        "slot_order": "membership_only"
+      },
+      "lottery_pool_id": null
+    },
+    {
       "key": "ml7",
       "name": "燕柳扶风",
       "att_type": "attml",
@@ -46803,6 +47141,98 @@
         }
       ],
       "suite_piece_count": 9,
+      "suite_mapping_confidence": "verified",
+      "suite_mapping_evidence": {
+        "basis": "pool_name_exact_suite",
+        "slot_order": "membership_only"
+      },
+      "lottery_pool_id": null
+    },
+    {
+      "key": "cl30",
+      "name": "月落花洲",
+      "att_type": "attcl",
+      "piece_count": null,
+      "configured_piece_count": null,
+      "notz": true,
+      "main_fashion_ids": [
+        13676
+      ],
+      "main_requirement": "any",
+      "mapping_confidence": "verified",
+      "mapping_evidence": {
+        "basis": "fashion_suite_main_item",
+        "suite_id": 33254,
+        "suite_name": "月落花洲",
+        "suite_resolution": "pool_name_exact_suite"
+      },
+      "piece_fashion_ids": [],
+      "piece_mapping_confidence": "unmapped",
+      "piece_mapping_evidence": {
+        "basis": "none"
+      },
+      "piece_marks": [],
+      "image_geometry": {
+        "source_width": null,
+        "source_height": null,
+        "source": "unavailable",
+        "slot_centers": []
+      },
+      "suite_id": 33254,
+      "suite_name": "月落花洲",
+      "suite_fashion_ids": [
+        13825,
+        13676,
+        13679,
+        13653,
+        13667,
+        14212,
+        13692,
+        13709
+      ],
+      "status_fashions": [
+        {
+          "fashion_id": 13825,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 13676,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 13679,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 13653,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 13667,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 14212,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 13692,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        },
+        {
+          "fashion_id": 13709,
+          "color_plate_count": 16,
+          "fashion_evolution_item_id": 3290
+        }
+      ],
+      "suite_piece_count": 8,
       "suite_mapping_confidence": "verified",
       "suite_mapping_evidence": {
         "basis": "pool_name_exact_suite",
@@ -55206,10 +55636,10 @@
     }
   ],
   "pool_counts": {
-    "ordinary": 199,
+    "ordinary": 203,
     "background": 126,
-    "total": 325,
-    "lottery_mapped": 146,
+    "total": 329,
+    "lottery_mapped": 148,
     "background_mapped": 120,
     "background_version_absent": 6
   },
@@ -55220,9 +55650,9 @@
       "pool_count": 199
     },
     "app_service": {
-      "file": "app-service.js",
-      "sha256": "3b45a656493d7823509cb1e08eee5a5d449442f4e56aef799168220e57a594db",
-      "pool_count": 325,
+      "file": "wxapkg-r21/app-service.js",
+      "sha256": "2c3cdaf2978ab52385c2cc1a3cbf9dcdcdcbc4c83d236f52942fb59d4a0af859a",
+      "pool_count": 329,
       "background_count": 126
     },
     "background_ocr": {

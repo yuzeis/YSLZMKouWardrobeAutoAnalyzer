@@ -403,7 +403,7 @@ SOURCE = DATA_ROOT / "YKAPoolCatalog.json"
 OUT = DATA_ROOT / "YKACompactCatalog.json"
 REGISTRY = DATA_ROOT / "YKACompactRegistry.json"
 SCALE = 1_000_000
-CATALOG_ID = "00000100"
+CATALOG_ID = "00000101"
 DEFAULT_WIDTH = 261
 
 
@@ -502,7 +502,7 @@ def build() -> dict[str, Any]:
         raise ValueError("pool catalog has no pools array")
     ordinary = [pool for pool in pools if pool.get("att_type") != "attbg"]
     background = [pool for pool in pools if pool.get("att_type") == "attbg"]
-    if len(ordinary) != 199 or len(background) != 126:
+    if len(ordinary) != 203 or len(background) != 126:
         raise ValueError("unexpected compact catalog pool counts")
     catalog: dict[str, Any] = {
         "schema_version": 1,
@@ -544,7 +544,10 @@ def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     if OUT.exists():
         previous = json.loads(OUT.read_text(encoding="utf-8"))
-        if previous.get("content_sha256") != catalog["content_sha256"]:
+        if (
+            previous.get("catalog_id") == CATALOG_ID
+            and previous.get("content_sha256") != catalog["content_sha256"]
+        ):
             raise RuntimeError("catalog content changed for immutable catalog_id")
     registry: dict[str, Any] = {"schema_version": 1, "catalogs": {}}
     if REGISTRY.exists():

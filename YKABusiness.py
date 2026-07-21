@@ -646,15 +646,16 @@ def _analyze_photo_info(
             complete_frames += 1
         if parsed.error:
             parse_errors.append(f"gp_photo_info at {message.frame_offset}: {parsed.error}")
+        partial_flag = _first_varint(parsed, 4)
         frame: dict[str, Any] = {
             "frame_offset": message.frame_offset,
-            "field4": _first_varint(parsed, 4),
+            "field4": partial_flag,
             "field2_photo_info": [],
             "field3_photo_info": [],
             "photo_ids": [],
             "photo_decos": [],
             "complete": parsed.complete,
-            "partial_flag": _first_varint(parsed, 4),
+            "partial_flag": 0 if partial_flag is None else partial_flag,
         }
         for number in (2, 3):
             raw_values = protobuf_bytes(parsed, number)
@@ -717,6 +718,7 @@ def _analyze_photo_info(
             "catalog_size": len(background_catalog),
         },
         "completeness": bool(responses) and not has_partial and not error_frames and complete_frames == observed_frames,
+        "partial_flag": 1 if has_partial or error_frames or complete_frames != observed_frames else 0,
         "records": records,
         "parse_errors": parse_errors,
         "semantics": (

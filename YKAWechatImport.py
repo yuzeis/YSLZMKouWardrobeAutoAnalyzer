@@ -117,6 +117,10 @@ def _load_json_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def _is_zero_partial_flag(value: Any) -> bool:
+    return (type(value) is int and value == 0) or value is False
+
+
 def _photo_snapshot_ids(photo_info: Any) -> tuple[set[int], bool]:
     """Extract command-637 field2/photo ids without guessing partial snapshots."""
     if not isinstance(photo_info, dict):
@@ -124,7 +128,8 @@ def _photo_snapshot_ids(photo_info: Any) -> tuple[set[int], bool]:
     if (
         photo_info.get("status") != "observed_present"
         or photo_info.get("completeness") is not True
-        or photo_info.get("partial_flag", 0) not in (0, False)
+        or "partial_flag" not in photo_info
+        or not _is_zero_partial_flag(photo_info.get("partial_flag"))
     ):
         return set(), False
     records = photo_info.get("records")
@@ -137,7 +142,8 @@ def _photo_snapshot_ids(photo_info: Any) -> tuple[set[int], bool]:
             return set(), False
         if (
             record.get("complete") is not True
-            or record.get("partial_flag", 0) not in (0, False)
+            or "partial_flag" not in record
+            or not _is_zero_partial_flag(record.get("partial_flag"))
         ):
             return set(), False
         values = record.get("photo_ids")

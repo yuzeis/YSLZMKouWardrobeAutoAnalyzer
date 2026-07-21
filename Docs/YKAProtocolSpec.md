@@ -559,7 +559,7 @@ Rust 与 JS 对同一输入的 wire 逐字节比对
 
 ## 附录 A（informative）：当前 catalog 参数与长度估算
 
-当前 catalog 参数：catalog_id = `00000100`，P = 199，R = 11，B = 126，default_width = 261，已核验槽位 = 1571。
+当前 catalog 参数：catalog_id = `00000101`，P = 203，R = 11，B = 126，default_width = 261，已核验槽位 = 1571。
 
 | 项 | payload | wire（+9B 头） | T1 Base64 | T2 码元（含哨兵） |
 |---|---:|---:|---:|---:|
@@ -581,4 +581,4 @@ Rust 与 JS 对同一输入的 wire 逐字节比对
 1. 分配 codec 2 / 3，完整承载普通池累计抽数；codec 0 / 1 保持原语法。
 2. 增加 J1 压缩原始 JSON，供不依赖 catalog 的本地保存和二维码输出。
 3. 规定二维码只承载 J1 / T1 / T2，不保留原始 JSON 选项。
-4. 记录 Python 参考实现目录 `00000100` 与当前真实样本尺寸基线。
+4. 记录 Python 参考实现目录 `00000101` 与当前真实样本尺寸基线。

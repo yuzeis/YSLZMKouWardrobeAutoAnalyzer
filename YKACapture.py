@@ -17,6 +17,7 @@ import psutil
 from YKACore import (
     CAPTURE_FILESIZE_KIB,
     CAPTURE_MAX_RETRIES,
+    CAPTURE_RETAIN_UNTIL_EXPORT,
     CAPTURE_RING_FILES,
     DUMPCAP_PATH,
     RUNTIME_DIR,
@@ -602,6 +603,8 @@ class CaptureManager:
             self._enforce_capture_ring_locked()
 
     def _enforce_capture_ring_locked(self) -> None:
+        if CAPTURE_RETAIN_UNTIL_EXPORT:
+            return
         pcap_dir = self.session_dir / "pcap"
         if not pcap_dir.is_dir():
             return
@@ -684,12 +687,11 @@ class CaptureManager:
                 "0",
                 "-b",
                 f"filesize:{CAPTURE_FILESIZE_KIB}",
-                "-b",
-                f"files:{CAPTURE_RING_FILES}",
-                "-w",
-                str(pcap_path),
             ]
         )
+        if not CAPTURE_RETAIN_UNTIL_EXPORT:
+            arguments.extend(["-b", f"files:{CAPTURE_RING_FILES}"])
+        arguments.extend(["-w", str(pcap_path)])
         self.log_stream = log_path.open("ab")
         self.process = subprocess.Popen(
             arguments,
@@ -732,7 +734,10 @@ class CaptureManager:
             self.current_capture_path = path
             self.current_file_packet_count = 0
             self.capture_files.append(path)
-            while len(self.capture_files) > CAPTURE_RING_FILES:
+            while (
+                not CAPTURE_RETAIN_UNTIL_EXPORT
+                and len(self.capture_files) > CAPTURE_RING_FILES
+            ):
                 old_path = self.capture_files.popleft()
                 expected_parent = (self.session_dir / "pcap").resolve()
                 if old_path.resolve().parent != expected_parent:

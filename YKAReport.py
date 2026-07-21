@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import stat
+import threading
+import time
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -20,7 +23,13 @@ from YKABusiness import (
     analyze_game_messages,
 )
 from YKACatalog import CatalogDecodeError, load_fashion_catalog
-from YKACore import RUNTIME_DIR, now_iso, read_json
+from YKACore import (
+    RUNTIME_DIR,
+    SESSIONS_DIR,
+    atomic_write_json,
+    now_iso,
+    read_json,
+)
 from YKAProtocol import (
     PartialCompactFrame,
     ProtocolDecodeError,
@@ -41,6 +50,11 @@ WARDROBE_GAME_MESSAGE_IDS = {
     GP_DIY_FASHION_DATA,
     GP_FASHION_OBTAIN_SUIT,
 }
+
+REPORT_FILENAME = "report.json"
+WECHAT_EXPORT_FILENAME = "wechat-export.json"
+CAPTURE_CLEANUP_FILENAME = "capture-cleanup.json"
+_REPORT_BUILD_LOCK = threading.Lock()
 
 
 def _read_events(path: Path) -> tuple[list[dict[str, Any]], int]:
@@ -591,51 +605,194 @@ def _enrich_wardrobe_catalog(
     wardrobe["quality_counts"] = dict(sorted(quality_counts.items()))
 
 
+def _persist_report(
+    session_dir: Path,
+    report: dict[str, Any],
+    state: str,
+) -> dict[str, Any]:
+    document = dict(report)
+    report_path = session_dir / REPORT_FILENAME
+    document["persistence"] = {
+        "state": state,
+        "written_at": now_iso(),
+        "path": str(report_path),
+    }
+    atomic_write_json(report_path, document)
+    return document
+
+
+def _validated_session_dir(
+    session_dir: Path,
+    sessions_root: Path | None = None,
+) -> Path:
+    candidate = Path(session_dir).resolve()
+    root = Path(sessions_root or SESSIONS_DIR).resolve()
+    if candidate == root or root not in candidate.parents:
+        raise ValueError("会话目录不在允许的 sessions 目录内")
+    return candidate
+
+
+def _is_link_or_reparse_point(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    if callable(is_junction) and is_junction():
+        return True
+    try:
+        attributes = int(getattr(path.lstat(), "st_file_attributes", 0))
+    except OSError:
+        return False
+    reparse_flag = int(getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
+    return bool(attributes & reparse_flag)
+
+
+def persist_wechat_export(
+    session_dir: Path,
+    payload: dict[str, Any],
+    *,
+    sessions_root: Path | None = None,
+) -> Path:
+    candidate = _validated_session_dir(session_dir, sessions_root)
+    if not isinstance(payload, dict):
+        raise TypeError("微信导出数据必须是对象")
+    target = candidate / WECHAT_EXPORT_FILENAME
+    atomic_write_json(target, payload)
+    return target
+
+
+def cleanup_session_capture_files(
+    session_dir: Path,
+    *,
+    sessions_root: Path | None = None,
+) -> dict[str, Any]:
+    candidate = _validated_session_dir(session_dir, sessions_root)
+    status = read_json(candidate / "status.json", {})
+    if not isinstance(status, dict) or status.get("state") != "stopped":
+        raise RuntimeError("采集器尚未停止，拒绝清理抓包文件")
+
+    report = read_json(candidate / REPORT_FILENAME, {})
+    persistence = report.get("persistence", {}) if isinstance(report, dict) else {}
+    if not isinstance(persistence, dict) or persistence.get("state") != "final":
+        raise RuntimeError("最终报告尚未落盘，拒绝清理抓包文件")
+
+    export = read_json(candidate / WECHAT_EXPORT_FILENAME, {})
+    if not isinstance(export, dict) or not export:
+        raise RuntimeError("微信导出数据尚未落盘，拒绝清理抓包文件")
+    if export.get("report_generated_at") != report.get("generated_at"):
+        raise RuntimeError("微信导出数据与最终报告不匹配，拒绝清理抓包文件")
+
+    pcap_dir = candidate / "pcap"
+    removed_files: list[str] = []
+    removed_bytes = 0
+    if _is_link_or_reparse_point(pcap_dir):
+        raise RuntimeError("抓包目录不能是链接或重解析点，拒绝清理")
+    paths = sorted(
+        {
+            *pcap_dir.glob("*.pcapng"),
+            *pcap_dir.glob("*.pcap"),
+        }
+    ) if pcap_dir.is_dir() else []
+    expected_parent = pcap_dir.resolve()
+    if expected_parent.parent != candidate:
+        raise RuntimeError("抓包目录路径越界，拒绝清理")
+    for path in paths:
+        if (
+            _is_link_or_reparse_point(pcap_dir)
+            or pcap_dir.resolve() != expected_parent
+        ):
+            raise RuntimeError("抓包目录在清理期间发生变化，拒绝继续")
+        if _is_link_or_reparse_point(path):
+            raise RuntimeError("抓包文件不能是链接或重解析点，拒绝清理")
+        resolved = path.resolve()
+        if resolved.parent != expected_parent:
+            raise RuntimeError("抓包文件路径越界，拒绝清理")
+        try:
+            size = resolved.stat().st_size
+        except OSError:
+            size = 0
+        for attempt in range(20):
+            try:
+                path.unlink(missing_ok=True)
+                break
+            except OSError as error:
+                retryable = isinstance(error, PermissionError) or getattr(
+                    error, "winerror", None
+                ) in {5, 32}
+                if not retryable or attempt == 19:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+        removed_files.append(resolved.name)
+        removed_bytes += size
+
+    result = {
+        "schema_version": 1,
+        "cleaned_at": now_iso(),
+        "session_dir": str(candidate),
+        "removed_file_count": len(removed_files),
+        "removed_bytes": removed_bytes,
+        "removed_files": removed_files,
+        "report_generated_at": report.get("generated_at"),
+    }
+    atomic_write_json(candidate / CAPTURE_CLEANUP_FILENAME, result)
+    return result
+
+
 def build_session_report(session_dir: Path) -> dict[str, Any]:
     session_dir = session_dir.resolve()
-    events, event_parse_errors = _read_events(session_dir / "events.jsonl")
-    pcap_files = sorted((session_dir / "pcap").glob("*.pcapng"))
-    processes = [event for event in events if event.get("type") == "target_process"]
-    flows = [event for event in events if event.get("type") == "network_flow"]
-    open_files = [event for event in events if event.get("type") == "open_file"]
-    protocols, capture_errors = _protocol_counts(pcap_files)
-    protocol_decode, data_coverage, decode_errors = _decode_game_traffic(pcap_files)
-    capture_errors.extend(decode_errors)
-    report = {
-        "schema_version": 3,
-        "generated_at": now_iso(),
-        "session": read_json(session_dir / "session.json", {}),
-        "status": read_json(session_dir / "status.json", {}),
-        "target_processes": processes,
-        "network_flows": flows,
-        "open_files": open_files,
-        "capture_files": _capture_file_entries(pcap_files, capture_errors),
-        "protocol_counts": dict(protocols.most_common()),
-        "protocol_decode": protocol_decode,
-        "event_parse_errors": event_parse_errors,
-        "capture_parse_errors": capture_errors,
-        "data_coverage": data_coverage,
-    }
-    _enrich_wardrobe_catalog(
-        data_coverage["wardrobe_presence"], processes, capture_errors
-    )
-    return report
+    with _REPORT_BUILD_LOCK:
+        events, event_parse_errors = _read_events(session_dir / "events.jsonl")
+        pcap_files = sorted((session_dir / "pcap").glob("*.pcapng"))
+        processes = [
+            event for event in events if event.get("type") == "target_process"
+        ]
+        flows = [event for event in events if event.get("type") == "network_flow"]
+        open_files = [event for event in events if event.get("type") == "open_file"]
+        protocols, capture_errors = _protocol_counts(pcap_files)
+        protocol_decode, data_coverage, decode_errors = _decode_game_traffic(pcap_files)
+        capture_errors.extend(decode_errors)
+        report = {
+            "schema_version": 3,
+            "generated_at": now_iso(),
+            "session": read_json(session_dir / "session.json", {}),
+            "status": read_json(session_dir / "status.json", {}),
+            "target_processes": processes,
+            "network_flows": flows,
+            "open_files": open_files,
+            "capture_files": _capture_file_entries(pcap_files, capture_errors),
+            "protocol_counts": dict(protocols.most_common()),
+            "protocol_decode": protocol_decode,
+            "event_parse_errors": event_parse_errors,
+            "capture_parse_errors": capture_errors,
+            "data_coverage": data_coverage,
+        }
+        _enrich_wardrobe_catalog(
+            data_coverage["wardrobe_presence"], processes, capture_errors
+        )
+        return _persist_report(session_dir, report, "final")
 
 
 def build_live_coverage(session_dir: Path) -> dict[str, Any]:
-    """Decode the current capture for GUI browse-state preview without persistence."""
+    """Decode the current capture and atomically persist the live report."""
     session_dir = session_dir.resolve()
-    pcap_files = sorted((session_dir / "pcap").glob("*.pcapng"))
-    protocol_decode, data_coverage, decode_errors = _decode_game_traffic(pcap_files)
-    return {
-        "generated_at": now_iso(),
-        "session_dir": str(session_dir),
-        "protocol_decode": protocol_decode,
-        "data_coverage": data_coverage,
-        "capture_parse_errors": decode_errors,
-    }
+    with _REPORT_BUILD_LOCK:
+        existing = read_json(session_dir / REPORT_FILENAME, {})
+        if isinstance(existing, dict):
+            persistence = existing.get("persistence", {})
+            if isinstance(persistence, dict) and persistence.get("state") == "final":
+                return existing
+        pcap_files = sorted((session_dir / "pcap").glob("*.pcapng"))
+        protocol_decode, data_coverage, decode_errors = _decode_game_traffic(pcap_files)
+        report = {
+            "schema_version": 3,
+            "generated_at": now_iso(),
+            "session_dir": str(session_dir),
+            "protocol_decode": protocol_decode,
+            "data_coverage": data_coverage,
+            "capture_parse_errors": decode_errors,
+        }
+        return _persist_report(session_dir, report, "live")
 
 
 def analyze_session(session_dir: Path) -> dict[str, Any]:
-    """Compatibility alias for the memory-only report builder."""
+    """Compatibility alias for the persistent final report builder."""
     return build_session_report(session_dir)

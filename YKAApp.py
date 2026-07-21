@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 from dataclasses import dataclass
 import json
 import os
 import queue
+import subprocess
 import sys
 import tempfile
 import threading
@@ -56,9 +58,14 @@ from YKACollector import (
     start_background,
 )
 from YKACapture import inspect_npcap, inspect_scapy, list_scapy_interfaces
-from YKACore import SESSIONS_DIR
+from YKACore import SESSIONS_DIR, now_iso
 from YKAEnvironment import guide_install_npcap, install_scapy
-from YKAReport import build_live_coverage, build_session_report
+from YKAReport import (
+    build_live_coverage,
+    build_session_report,
+    cleanup_session_capture_files,
+    persist_wechat_export,
+)
 
 
 APP_NAME = "YSLZMKouWardrobeAutoAnalyzer"
@@ -84,7 +91,7 @@ STATE_LABELS = {
     "waiting_for_game": "等待游戏",
     "capturing": "正在采集",
     "draining_capture": "正在收尾",
-    "analyzing": "正在生成内存报告",
+    "analyzing": "正在生成报告文件",
     "stopped": "已停止",
     "failed": "失败",
     "stop_pending": "等待停止",
@@ -420,7 +427,7 @@ class ReporterApp:
         self.capture_state_var = tk.StringVar(value="未开始")
         self.session_var = tk.StringVar(value="-")
         self.environment_var = tk.StringVar(value="尚未检查")
-        self.report_summary_var = tk.StringVar(value="尚未生成内存报告")
+        self.report_summary_var = tk.StringVar(value="尚未生成报告文件")
         self.import_summary_text = "尚未生成"
         self.target_image_width_var = tk.StringVar(value="261")
         self.qr_kind_var = tk.StringVar(value=QR_KIND_C1_BASE64)
@@ -644,7 +651,7 @@ class ReporterApp:
         summary_inner = summary_card.inner
         summary_inner.columnconfigure(0, weight=1)
         self.report_badge = StatusBadge(
-            summary_inner, theme, "empty", "尚未生成内存报告"
+            summary_inner, theme, "empty", "尚未生成报告文件"
         )
         self.report_badge.grid(row=0, column=0, sticky="w", pady=(0, sp["xs"]))
         summary_label = ttk.Label(
@@ -1160,6 +1167,15 @@ class ReporterApp:
     def _show_started(self, result: dict[str, Any]) -> None:
         self._reset_report_state()
         self._apply_status(result)
+        session_value = result.get("session_dir")
+        if isinstance(session_value, str) and session_value:
+            try:
+                live_report = build_live_coverage(Path(session_value))
+                persistence = live_report.get("persistence", {})
+                if isinstance(persistence, dict) and persistence.get("path"):
+                    self._append_log(f"实时报告：{persistence['path']}")
+            except Exception as error:
+                self._append_log(f"初始化实时报告失败：{error}")
         self._append_log("采集器已启动。现在正常进入游戏并浏览需要记录的页面即可。")
         self._append_log(
             "游戏流量提示当前为“尚未抓到”；检测到 TCP/UDP 9227 数据后会自动变为绿色“已抓到”。"
@@ -1167,7 +1183,7 @@ class ReporterApp:
 
     def stop_capture(self) -> None:
         self._submit(
-            "停止采集并生成内存报告",
+            "停止采集并生成报告文件",
             self._stop_and_build_report,
             self._show_stopped,
         )
@@ -1182,11 +1198,16 @@ class ReporterApp:
         if not isinstance(session_value, str) or not session_value:
             raise RuntimeError("采集器没有返回会话目录")
         report = build_session_report(Path(session_value))
+        persistence = report.get("persistence", {})
+        report_path = (
+            persistence.get("path") if isinstance(persistence, dict) else None
+        )
         final_status = {
             **status,
             "state": "stopped",
             "analysis_pending": False,
-            "report_in_memory": True,
+            "report_path": report_path,
+            "report_persisted": bool(report_path),
         }
         return {"status": final_status, "report": report}
 
@@ -1197,7 +1218,7 @@ class ReporterApp:
         self._apply_status(status)
         report = result.get("report")
         if not isinstance(report, dict):
-            raise ValueError("内存报告根节点不是对象")
+            raise ValueError("报告根节点不是对象")
         self._current_report = report
         self._report_revision += 1
         self._clear_import_output()
@@ -1586,8 +1607,8 @@ class ReporterApp:
         self._current_report = None
         self._report_revision += 1
         self._clear_import_output()
-        self.report_badge.set("empty", "尚未生成内存报告")
-        self.report_summary_var.set("尚未生成内存报告")
+        self.report_badge.set("empty", "尚未生成报告文件")
+        self.report_summary_var.set("尚未生成报告文件")
         self._replace_text(self.report_text, "", readonly=True)
         for badge in self.browse_badges.values():
             badge.set("idle", "待检测")
@@ -1638,8 +1659,14 @@ class ReporterApp:
             f"本次抽取结果 {history_count} 次；"
             f"背景记录 {photo_count}（已映射 {background_count}）"
         )
+        persistence = report.get("persistence", {})
+        if not isinstance(persistence, dict):
+            persistence = {}
         summary = {
-            "报告": "当前程序内存（未写入报告文件）",
+            "报告": {
+                "状态": persistence.get("state"),
+                "文件": persistence.get("path"),
+            },
             "生成时间": report.get("generated_at"),
             "协议解析": {
                 "status": (
@@ -1702,11 +1729,45 @@ class ReporterApp:
         self.import_badge.set("empty", "尚未生成")
         self._set_import_summary("尚未生成")
 
+    def _persist_wechat_export_and_cleanup(
+        self,
+        artifacts: ImportArtifacts,
+    ) -> tuple[Path, dict[str, Any]]:
+        if self._active_session is None or self._current_report is None:
+            raise RuntimeError("当前会话或最终报告不可用")
+        report_generated_at = self._current_report.get("generated_at")
+        persistence = self._current_report.get("persistence", {})
+        if not isinstance(report_generated_at, str) or not report_generated_at:
+            raise RuntimeError("最终报告缺少生成时间")
+        if not isinstance(persistence, dict) or persistence.get("state") != "final":
+            raise RuntimeError("最终报告尚未落盘")
+        payload = {
+            "schema_version": 1,
+            "generated_at": now_iso(),
+            "app": APP_NAME,
+            "version": APP_VERSION,
+            "session_dir": str(self._active_session.resolve()),
+            "report_generated_at": report_generated_at,
+            "report_path": persistence.get("path"),
+            "catalog_id": artifacts.catalog_id,
+            "codec_id": artifacts.codec_id,
+            "target_width": artifacts.target_width,
+            "transports": {
+                "raw_json": artifacts.raw_json,
+                "compressed_json": artifacts.compressed_json,
+                "c1_base64": artifacts.c1_base64,
+                "c1_base4096": artifacts.c1_base4096,
+            },
+        }
+        export_path = persist_wechat_export(self._active_session, payload)
+        cleanup = cleanup_session_capture_files(self._active_session)
+        return export_path, cleanup
+
     def generate_wechat_code(self) -> None:
         self._clear_import_output()
         try:
             if self._current_report is None:
-                raise ImportDataError("尚未生成内存报告，请先完成一次采集")
+                raise ImportDataError("尚未生成最终报告，请先完成一次采集")
             target_width = int(self.target_image_width_var.get().strip())
             result = generate_import_code_from_report(
                 self._current_report,
@@ -1747,6 +1808,25 @@ class ReporterApp:
             readonly=True,
         )
         self._render_selected_qr()
+        persistence_error = ""
+        storage_text = ""
+        try:
+            export_path, cleanup = self._persist_wechat_export_and_cleanup(artifacts)
+        except (OSError, RuntimeError, TypeError, ValueError) as error:
+            persistence_error = str(error)
+            storage_text = f"导出数据或抓包清理失败：{error}"
+            self._append_log(storage_text)
+            messagebox.showwarning(
+                APP_NAME,
+                "导入码已经生成，但导出数据落盘或抓包清理失败。\n\n"
+                f"{error}",
+            )
+        else:
+            removed_count = int(cleanup.get("removed_file_count") or 0)
+            storage_text = (
+                f"导出文件 {export_path}；已清理抓包文件 {removed_count} 个"
+            )
+            self._append_log(storage_text)
         warning_text = "\n".join(f"- {item}" for item in result.warnings)
         status_counts: dict[int, int] = {}
         for record in result.records:
@@ -1761,7 +1841,8 @@ class ReporterApp:
             result.unresolved_piece_pool_count + result.unresolved_status_pool_count
         )
         if (
-            unresolved
+            persistence_error
+            or unresolved
             or result.unobserved_draw_count
             or result.draw_evidence_level in {"candidate", "mixed"}
         ):
@@ -1787,6 +1868,7 @@ class ReporterApp:
             f"C1 wire {len(artifacts.wire)} B；"
             f"Base64 {len(artifacts.c1_base64)} 字符；"
             f"Base4096 {len(artifacts.c1_base4096)} 字符\n"
+            f"{storage_text}\n"
             f"{warning_text}"
         )
 
@@ -1796,7 +1878,7 @@ class ReporterApp:
             or self._last_import_report_revision != self._report_revision
             or self._last_import_artifacts is None
         ):
-            raise ValueError("当前输出不是由本次内存报告生成，请重新生成")
+            raise ValueError("当前输出不是由本次报告生成，请重新生成")
         return self._last_import_artifacts
 
     def _current_import_code(self) -> str:
@@ -2105,12 +2187,115 @@ def _capture_dependency_smoke() -> dict[str, Any]:
     }
 
 
+def _report_persistence_smoke() -> dict[str, Any]:
+    with tempfile.TemporaryDirectory(prefix="yka-report-smoke-") as temporary_dir:
+        sessions_root = Path(temporary_dir) / "sessions"
+        session_dir = sessions_root / "session"
+        pcap_dir = session_dir / "pcap"
+        pcap_dir.mkdir(parents=True)
+        (session_dir / "session.json").write_text("{}", encoding="utf-8")
+        (session_dir / "events.jsonl").write_text("", encoding="utf-8")
+        (session_dir / "status.json").write_text(
+            '{"state":"stopped"}', encoding="utf-8"
+        )
+        live = build_live_coverage(session_dir)
+        final = build_session_report(session_dir)
+        capture_path = pcap_dir / "smoke.pcapng"
+        capture_path.write_bytes(b"smoke")
+        export_path = persist_wechat_export(
+            session_dir,
+            {
+                "schema_version": 1,
+                "report_generated_at": final.get("generated_at"),
+                "transports": {"raw_json": "[]"},
+            },
+            sessions_root=sessions_root,
+        )
+        cleanup = cleanup_session_capture_files(
+            session_dir,
+            sessions_root=sessions_root,
+        )
+        report_path = Path(str(final.get("persistence", {}).get("path") or ""))
+        return {
+            "live_state": live.get("persistence", {}).get("state"),
+            "final_state": final.get("persistence", {}).get("state"),
+            "report_exists": report_path.is_file(),
+            "export_exists": export_path.is_file(),
+            "removed_capture_files": cleanup.get("removed_file_count"),
+            "capture_removed": not capture_path.exists(),
+        }
+
+
 def _write_smoke_output(path: Path, payload: str) -> None:
     target = path.expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_name(target.name + ".tmp")
     temporary.write_text(payload + "\n", encoding="utf-8")
     os.replace(temporary, target)
+
+
+def is_running_as_admin() -> bool:
+    if os.name != "nt":
+        return True
+    try:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except (AttributeError, OSError):
+        return False
+
+
+def _admin_restart_command() -> tuple[str, list[str]]:
+    if getattr(sys, "frozen", False):
+        return sys.executable, list(sys.argv[1:])
+    return sys.executable, [str(Path(__file__).resolve()), *sys.argv[1:]]
+
+
+def _launch_elevated(executable: str, arguments: list[str]) -> None:
+    parameters = subprocess.list2cmdline(arguments)
+    working_directory = (
+        Path(executable).resolve().parent
+        if getattr(sys, "frozen", False)
+        else PROJECT_ROOT
+    )
+    shell_execute = ctypes.windll.shell32.ShellExecuteW
+    shell_execute.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_wchar_p,
+        ctypes.c_wchar_p,
+        ctypes.c_wchar_p,
+        ctypes.c_wchar_p,
+        ctypes.c_int,
+    ]
+    shell_execute.restype = ctypes.c_void_p
+    result = shell_execute(
+        None,
+        "runas",
+        executable,
+        parameters,
+        str(working_directory),
+        1,
+    )
+    result_code = int(result or 0)
+    if result_code <= 32:
+        raise OSError(result_code, "Windows 拒绝或取消了管理员权限请求")
+
+
+def ensure_admin_or_restart() -> bool:
+    """Relaunch the normal GUI with UAC; return True in the original process."""
+    if os.name != "nt" or is_running_as_admin():
+        return False
+    executable, arguments = _admin_restart_command()
+    _launch_elevated(executable, arguments)
+    return True
+
+
+def _show_native_startup_error(message: str) -> None:
+    if os.name == "nt":
+        try:
+            ctypes.windll.user32.MessageBoxW(None, message, APP_NAME, 0x10)
+            return
+        except (AttributeError, OSError):
+            pass
+    print(message, file=sys.stderr)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -2152,6 +2337,16 @@ def main() -> int:
             args.interfaces,
             args.interface_names,
         )
+    if not args.smoke_test:
+        try:
+            if ensure_admin_or_restart():
+                return 0
+        except OSError as error:
+            _show_native_startup_error(
+                "本程序需要管理员权限才能稳定访问 Npcap 并写入实时报告。\n\n"
+                f"{error}"
+            )
+            return 1
     root = tk.Tk()
     root.withdraw()
     theme = ui_theme.Theme(root)
@@ -2221,11 +2416,12 @@ def main() -> int:
                 "compact_wire_bytes": len(smoke_artifacts.wire),
                 "qr_smoke": smoke_qr,
                 "capture_dependencies": _capture_dependency_smoke(),
+                "report_persistence": _report_persistence_smoke(),
                 "scapy": inspect_scapy(),
                 "npcap": inspect_npcap(),
                 "scapy_interfaces": scapy_interfaces,
                 "sessions_dir": str(SESSIONS_DIR),
-                "report_storage": "memory",
+                "report_storage": "session/report.json",
                 "protocol_spec": PROTOCOL_SPEC_PATH.is_file(),
                 "license": LICENSE_PATH.is_file(),
                 "startup_notices": len(STARTUP_NOTICES),

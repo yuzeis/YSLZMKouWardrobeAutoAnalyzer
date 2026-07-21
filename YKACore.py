@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -67,6 +69,7 @@ OPEN_FILE_POLL_SECONDS = 5.0
 GAME_SERVICE_PORT = 9227
 CAPTURE_FILESIZE_KIB = 32768
 CAPTURE_RING_FILES = 2
+CAPTURE_RETAIN_UNTIL_EXPORT = True
 CAPTURE_MAX_RETRIES = 2
 CAPTURE_DRAIN_SECONDS = 2.0
 
@@ -77,11 +80,31 @@ def now_iso() -> str:
 
 def atomic_write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8"
+    temporary = path.with_name(
+        f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
     )
-    os.replace(temporary, path)
+    try:
+        with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        for attempt in range(20):
+            try:
+                os.replace(temporary, path)
+                return
+            except OSError as error:
+                retryable = isinstance(error, PermissionError) or getattr(
+                    error, "winerror", None
+                ) in {5, 32}
+                if not retryable or attempt == 19:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def append_jsonl(path: Path, value: Any) -> None:

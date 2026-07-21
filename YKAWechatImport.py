@@ -893,14 +893,9 @@ def generate_import_code_from_report(
     background_ownership: dict[str, bool | int] | None = None,
     allow_unresolved_status: bool = False,
 ) -> ImportResult:
-    """Generate a complete WeChat import code from an in-memory report.
-
-    The report is consumed directly and is never serialized to ``report.json``.
-    This keeps the existing validation and compact protocol unchanged while
-    allowing the collector/UI to hand the report across in memory.
-    """
+    """Generate a complete WeChat import code from a validated report mapping."""
     if not isinstance(report, dict):
-        raise ImportDataError("内存报告根节点必须是对象")
+        raise ImportDataError("报告根节点必须是对象")
     if (
         not isinstance(target_image_width_px, int)
         or isinstance(target_image_width_px, bool)

@@ -255,7 +255,7 @@ def test_capture_manager_retries_initial_start(monkeypatch: pytest.MonkeyPatch, 
     assert manager.failed is False
 
 
-def test_capture_ring_is_global_across_attempts(tmp_path: Path) -> None:
+def test_capture_segments_are_retained_until_export(tmp_path: Path) -> None:
     manager = capture.CaptureManager(
         tmp_path,
         "dumpcap",
@@ -273,11 +273,50 @@ def test_capture_ring_is_global_across_attempts(tmp_path: Path) -> None:
     manager._enforce_capture_ring()
 
     files = sorted(pcap_dir.glob("*.pcapng"))
-    assert len(files) == capture.CAPTURE_RING_FILES
+    assert len(files) == capture.CAPTURE_RING_FILES + 2
     assert [path.name for path in files] == [
+        "game-9227-segment-0001.pcapng",
+        "game-9227-segment-0002.pcapng",
         "game-9227-segment-0003.pcapng",
         "game-9227-segment-0004.pcapng",
     ]
+
+
+def test_dumpcap_rotation_has_no_file_count_ring(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured_arguments: list[str] = []
+
+    class RunningProcess:
+        returncode = None
+
+        def poll(self) -> None:
+            return None
+
+    def fake_popen(arguments: list[str], **_kwargs: object) -> RunningProcess:
+        captured_arguments.extend(arguments)
+        output_path = Path(arguments[arguments.index("-w") + 1])
+        output_path.touch()
+        return RunningProcess()
+
+    monkeypatch.setattr(capture.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(capture.time, "sleep", lambda _seconds: None)
+    manager = capture.CaptureManager(
+        tmp_path,
+        "dumpcap",
+        ["1"],
+        ["Test"],
+        tmp_path / "events.jsonl",
+        "tcp port 9227",
+    )
+
+    manager._start_dumpcap()
+
+    assert f"files:{capture.CAPTURE_RING_FILES}" not in captured_arguments
+    assert f"filesize:{capture.CAPTURE_FILESIZE_KIB}" in captured_arguments
+    assert manager.log_stream is not None
+    manager.log_stream.close()
 
 
 def test_scapy_writer_open_is_atomic_with_ring_cleanup(
@@ -354,7 +393,7 @@ def test_scapy_writer_open_is_atomic_with_ring_cleanup(
     assert errors == []
     assert manager.current_capture_path is not None
     assert manager.current_capture_path.is_file()
-    assert len(list(pcap_dir.glob("*.pcapng"))) == capture.CAPTURE_RING_FILES
+    assert len(list(pcap_dir.glob("*.pcapng"))) == capture.CAPTURE_RING_FILES + 1
 
 
 def _pcapng_block(block_type: int, body: bytes) -> bytes:

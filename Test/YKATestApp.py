@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import queue
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
@@ -65,6 +66,18 @@ def test_release_metadata_is_finalized() -> None:
     assert APP_TITLE == (
         "YSLZMKouWardrobeAutoAnalyzer ver1.0-beta1 - Gnadenfülle"
     )
+
+
+def test_report_persistence_smoke_covers_cleanup() -> None:
+    result = YKAApp._report_persistence_smoke()
+    assert result == {
+        "live_state": "live",
+        "final_state": "final",
+        "report_exists": True,
+        "export_exists": True,
+        "removed_capture_files": 1,
+        "capture_removed": True,
+    }
 
 
 def test_qr_capacity_feedback_guides_to_compact_transports() -> None:
@@ -133,6 +146,8 @@ def test_rejecting_startup_notice_exits_before_app_initialization() -> None:
     root = mock.Mock()
     theme = object()
     with mock.patch.object(YKAApp, "build_parser", return_value=parser), mock.patch.object(
+        YKAApp, "ensure_admin_or_restart", return_value=False
+    ), mock.patch.object(
         YKAApp.tk, "Tk", return_value=root
     ), mock.patch.object(
         YKAApp.ui_theme, "Theme", return_value=theme
@@ -145,6 +160,79 @@ def test_rejecting_startup_notice_exits_before_app_initialization() -> None:
     notices.assert_called_once_with(root, theme)
     reporter.assert_not_called()
     root.destroy.assert_called_once_with()
+
+
+def test_normal_start_relaunches_elevated_before_tk() -> None:
+    args = SimpleNamespace(collector_watch=False, smoke_test=False)
+    parser = mock.Mock()
+    parser.parse_args.return_value = args
+    with mock.patch.object(YKAApp, "build_parser", return_value=parser), mock.patch.object(
+        YKAApp, "ensure_admin_or_restart", return_value=True
+    ) as elevate, mock.patch.object(YKAApp.tk, "Tk") as tk_root:
+        assert YKAApp.main() == 0
+
+    elevate.assert_called_once_with()
+    tk_root.assert_not_called()
+
+
+def test_admin_restart_command_preserves_source_arguments() -> None:
+    with mock.patch.object(YKAApp.sys, "argv", ["YKAApp.py", "--example", "a b"]), mock.patch.object(
+        YKAApp.sys, "frozen", False, create=True
+    ):
+        executable, arguments = YKAApp._admin_restart_command()
+
+    assert executable == YKAApp.sys.executable
+    assert Path(arguments[0]).name == "YKAApp.py"
+    assert arguments[1:] == ["--example", "a b"]
+
+
+def test_launch_elevated_uses_pointer_sized_shell_result(tmp_path) -> None:
+    executable = tmp_path / "app.exe"
+    shell_execute = mock.Mock(return_value=33)
+    with mock.patch.object(
+        YKAApp.ctypes.windll.shell32,
+        "ShellExecuteW",
+        shell_execute,
+    ), mock.patch.object(YKAApp.sys, "frozen", True, create=True):
+        YKAApp._launch_elevated(str(executable), ["--value", "a b"])
+
+    assert shell_execute.restype is YKAApp.ctypes.c_void_p
+    assert shell_execute.argtypes[-1] is YKAApp.ctypes.c_int
+    assert shell_execute.call_args.args[4] == str(tmp_path.resolve())
+    assert '"a b"' in shell_execute.call_args.args[3]
+
+
+def test_persist_wechat_export_then_cleans_capture(tmp_path) -> None:
+    app = object.__new__(ReporterApp)
+    app._active_session = tmp_path / "session"
+    app._current_report = {
+        "generated_at": "2026-07-21T10:00:00+08:00",
+        "persistence": {"state": "final", "path": "report.json"},
+    }
+    artifacts = SimpleNamespace(
+        catalog_id="catalog",
+        codec_id="codec",
+        target_width=261,
+        raw_json="[]",
+        compressed_json="J1:test",
+        c1_base64="C1B64:test",
+        c1_base4096="C1B4096:test",
+    )
+    export_path = tmp_path / "session" / "wechat-export.json"
+    cleanup = {"removed_file_count": 2}
+    with mock.patch.object(
+        YKAApp, "persist_wechat_export", return_value=export_path
+    ) as persist, mock.patch.object(
+        YKAApp, "cleanup_session_capture_files", return_value=cleanup
+    ) as clean:
+        result = app._persist_wechat_export_and_cleanup(artifacts)
+
+    assert result == (export_path, cleanup)
+    payload = persist.call_args.args[1]
+    assert payload["report_generated_at"] == app._current_report["generated_at"]
+    assert payload["transports"]["raw_json"] == "[]"
+    assert payload["transports"]["c1_base4096"] == "C1B4096:test"
+    clean.assert_called_once_with(app._active_session)
 
 
 def test_gacha_history_shows_only_observed_draw_quantity() -> None:

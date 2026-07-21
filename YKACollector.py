@@ -21,7 +21,7 @@ from YKACore import (
     CAPTURE_DRAIN_SECONDS,
     CAPTURE_FILESIZE_KIB,
     CAPTURE_MAX_RETRIES,
-    CAPTURE_RING_FILES,
+    CAPTURE_RETAIN_UNTIL_EXPORT,
     GAME_SERVICE_PORT,
     GAME_NAME_HINTS,
     KNOWN_LAUNCHERS,
@@ -479,8 +479,11 @@ class Collector:
             "interface_names": self.interface_names,
             "mode": "passive-read-only",
             "capture_filter": self.capture.capture_filter,
-            "capture_limit_bytes_per_segment": (
-                CAPTURE_FILESIZE_KIB * 1024 * CAPTURE_RING_FILES
+            "capture_segment_limit_bytes": CAPTURE_FILESIZE_KIB * 1024,
+            "capture_retention": (
+                "until_wechat_export"
+                if CAPTURE_RETAIN_UNTIL_EXPORT
+                else "bounded_ring"
             ),
             "capture_retry_limit": CAPTURE_MAX_RETRIES,
             "capture_drain_seconds": CAPTURE_DRAIN_SECONDS,

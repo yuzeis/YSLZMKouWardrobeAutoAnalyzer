@@ -13,7 +13,7 @@
 - Npcap 系统驱动
 - `YKARequirements.txt` 中的 Python 包
 
-采集和协议解析都使用 Scapy。TShark、mergecap 和 Wireshark不是必需组件。环境检查会检测 Npcap、Scapy、可用网卡和抓包权限；缺少 Scapy 或 Npcap 时可从界面确认后自动处理。Npcap 使用官方下载地址、验证 Windows Authenticode 签名，并显示官方安装界面和 UAC 确认，不执行静默安装。
+采集和协议解析都使用 Scapy。TShark、mergecap 和 Wireshark不是必需组件。正常启动 GUI 时会先显示 Windows UAC 并请求管理员权限，取消提权即退出。环境检查会检测 Npcap、Scapy、可用网卡和抓包权限；缺少 Scapy 或 Npcap 时可从界面确认后自动处理。Npcap 使用官方下载地址、验证 Windows Authenticode 签名，并显示官方安装界面和 UAC 确认，不执行静默安装。
 
 源码运行：
 
@@ -28,7 +28,7 @@ python YKAApp.py
 `YSLZMKouWardrobeAutoAnalyzer-ver1.0-beta1-windows-x64.exe`。Npcap 仍是系统级
 抓包组件；如未安装，程序会在用户确认后打开官方安装流程。
 
-正常启动 GUI 时会依次显示账号与法律风险、AGPL-3.0-only 开源许可、
+管理员权限确认完成后，正常启动 GUI 会依次显示账号与法律风险、AGPL-3.0-only 开源许可、
 官方永久免费与侵权处理三项声明。关闭任一窗口或点击“退出”都会在主界面和
 环境检查创建前结束程序；三项全部点击“同意”后才进入主界面。发布验证使用的
 `--smoke-test` 不显示这些交互窗口。
@@ -46,10 +46,10 @@ python -m pytest -q -o python_files=YKATest*.py Test
 3. 依次浏览卡池页面、抽卡记录、衣柜全部服装和背景页面。
 4. 确认“游戏流量”变为“已抓到”。顶部四项阅览状态会在捕获数据变化后约两秒进行一次后台解析并自动更新。
 5. “抽卡记录”表示服务器累计抽数快照已读取，不要求本次实际抽卡；本次采集期间的实际抽取结果会在最终报告中单独列出。
-6. 点“停止并生成内存报告”，用停止后的完整解析结果覆盖实时预览。
+6. 点“停止并生成报告文件”，用停止后的完整解析结果覆盖实时报告。
 7. 到“微信导入码”页生成完整导入数据。
 
-报告只保存在当前 GUI 进程内存中，默认不创建 `report.json`、`report.md` 或报告 CSV。关闭程序后报告消失。原始 PCAP、采集状态和会话证据仍保存在 `%LOCALAPPDATA%\YKAAuto`，用于停止后的本地解析和故障排查。
+每个会话位于 `%LOCALAPPDATA%\YKAAuto\sessions\<会话编号>`。抓包分段实时写入 `pcap` 子目录，`report.json` 随实时解析原子更新，停止后写入最终报告。生成微信导入码后，四种导出内容会写入 `wechat-export.json`；程序仅在最终报告和对应微信导出数据都确认落盘后清理该会话的 `.pcap`/`.pcapng` 文件，并保留报告、导出数据、日志和清理记录。
 
 ## 微信导入
 

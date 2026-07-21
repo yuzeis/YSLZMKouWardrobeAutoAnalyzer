@@ -408,6 +408,7 @@ class ReporterApp:
         self._current_report: dict[str, Any] | None = None
         self._report_revision = 0
         self._last_import_result: ImportResult | None = None
+        self._last_raw_import_code: str | None = None
         self._last_import_artifacts: ImportArtifacts | None = None
         self._last_import_report_revision: int | None = None
         self._qr_source_image: Image.Image | None = None
@@ -1712,6 +1713,7 @@ class ReporterApp:
     # ---------------------------------------------------------------- 导入码
     def _clear_import_output(self) -> None:
         self._last_import_result = None
+        self._last_raw_import_code = None
         self._last_import_artifacts = None
         self._last_import_report_revision = None
         for widget in (
@@ -1729,10 +1731,12 @@ class ReporterApp:
         self.import_badge.set("empty", "尚未生成")
         self._set_import_summary("尚未生成")
 
-    def _persist_wechat_export_and_cleanup(
+    def _wechat_export_payload(
         self,
-        artifacts: ImportArtifacts,
-    ) -> tuple[Path, dict[str, Any]]:
+        raw_json: str,
+        target_width: int,
+        artifacts: ImportArtifacts | None = None,
+    ) -> dict[str, Any]:
         if self._active_session is None or self._current_report is None:
             raise RuntimeError("当前会话或最终报告不可用")
         report_generated_at = self._current_report.get("generated_at")
@@ -1741,7 +1745,20 @@ class ReporterApp:
             raise RuntimeError("最终报告缺少生成时间")
         if not isinstance(persistence, dict) or persistence.get("state") != "final":
             raise RuntimeError("最终报告尚未落盘")
-        payload = {
+        transports = {"raw_json": raw_json}
+        catalog_id: str | None = None
+        codec_id: int | None = None
+        if artifacts is not None:
+            transports.update(
+                {
+                    "compressed_json": artifacts.compressed_json,
+                    "c1_base64": artifacts.c1_base64,
+                    "c1_base4096": artifacts.c1_base4096,
+                }
+            )
+            catalog_id = artifacts.catalog_id
+            codec_id = artifacts.codec_id
+        return {
             "schema_version": 1,
             "generated_at": now_iso(),
             "app": APP_NAME,
@@ -1749,16 +1766,29 @@ class ReporterApp:
             "session_dir": str(self._active_session.resolve()),
             "report_generated_at": report_generated_at,
             "report_path": persistence.get("path"),
-            "catalog_id": artifacts.catalog_id,
-            "codec_id": artifacts.codec_id,
-            "target_width": artifacts.target_width,
-            "transports": {
-                "raw_json": artifacts.raw_json,
-                "compressed_json": artifacts.compressed_json,
-                "c1_base64": artifacts.c1_base64,
-                "c1_base4096": artifacts.c1_base4096,
-            },
+            "catalog_id": catalog_id,
+            "codec_id": codec_id,
+            "target_width": target_width,
+            "transports": transports,
         }
+
+    def _persist_raw_wechat_export(self, raw_json: str, target_width: int) -> Path:
+        if self._active_session is None:
+            raise RuntimeError("当前会话不可用")
+        payload = self._wechat_export_payload(raw_json, target_width)
+        return persist_wechat_export(self._active_session, payload)
+
+    def _persist_wechat_export_and_cleanup(
+        self,
+        artifacts: ImportArtifacts,
+    ) -> tuple[Path, dict[str, Any]]:
+        if self._active_session is None:
+            raise RuntimeError("当前会话不可用")
+        payload = self._wechat_export_payload(
+            artifacts.raw_json,
+            artifacts.target_width,
+            artifacts,
+        )
         export_path = persist_wechat_export(self._active_session, payload)
         cleanup = cleanup_session_capture_files(self._active_session)
         return export_path, cleanup
@@ -1774,6 +1804,25 @@ class ReporterApp:
                 POOL_CATALOG_PATH,
                 target_image_width_px=target_width,
             )
+        except (ImportDataError, KeyError, OSError, TypeError, ValueError) as error:
+            self.import_badge.set("error", "生成失败")
+            messagebox.showerror(APP_NAME, f"生成失败\n\n{error}")
+            return
+
+        self._last_import_result = result
+        self._last_raw_import_code = result.code
+        self._last_import_report_revision = self._report_revision
+        self._replace_text(self.import_text, result.code, readonly=True)
+
+        raw_export_path: Path | None = None
+        raw_export_error = ""
+        try:
+            raw_export_path = self._persist_raw_wechat_export(result.code, target_width)
+        except (OSError, RuntimeError, TypeError, ValueError) as error:
+            raw_export_error = str(error)
+            self._append_log(f"原始微信导入 JSON 落盘失败：{error}")
+
+        try:
             artifacts = build_import_artifacts(
                 result.code,
                 catalog_path=COMPACT_CATALOG_PATH,
@@ -1783,15 +1832,41 @@ class ReporterApp:
                     record.pool_key for record in result.records
                 ),
             )
-        except (ArtifactError, ImportDataError, OSError, ValueError) as error:
-            self.import_badge.set("error", "生成失败")
-            messagebox.showerror(APP_NAME, f"生成失败\n\n{error}")
+        except (ArtifactError, KeyError, OSError, TypeError, ValueError) as error:
+            cleanup_text = ""
+            if raw_export_path is not None and self._active_session is not None:
+                try:
+                    cleanup = cleanup_session_capture_files(self._active_session)
+                except (OSError, RuntimeError, TypeError, ValueError) as cleanup_error:
+                    cleanup_text = f"；抓包清理失败：{cleanup_error}"
+                    self._append_log(f"抓包清理失败：{cleanup_error}")
+                else:
+                    cleanup_text = (
+                        f"；已清理抓包文件 "
+                        f"{int(cleanup.get('removed_file_count') or 0)} 个"
+                    )
+            raw_storage = (
+                f"原始导出文件 {raw_export_path}{cleanup_text}"
+                if raw_export_path is not None
+                else f"原始导出文件落盘失败：{raw_export_error or '未知错误'}"
+            )
+            warning_text = "\n".join(f"- {item}" for item in result.warnings)
+            self.import_badge.set("warn", "原始 JSON 已生成")
+            self._set_import_summary(
+                f"原始微信导入 JSON 已生成，"
+                f"共 {len(result.records)} 条、{len(result.code.encode('utf-8'))} B。\n"
+                f"{raw_storage}\n"
+                f"紧凑格式生成失败：{error}\n"
+                f"{warning_text}"
+            )
+            messagebox.showwarning(
+                APP_NAME,
+                "原始微信导入 JSON 已生成，可直接复制或保存。\n\n"
+                f"压缩格式与二维码生成失败：{error}",
+            )
             return
 
-        self._last_import_result = result
         self._last_import_artifacts = artifacts
-        self._last_import_report_revision = self._report_revision
-        self._replace_text(self.import_text, artifacts.raw_json, readonly=True)
         self._replace_text(
             self.compressed_json_text,
             artifacts.compressed_json,
@@ -1881,8 +1956,17 @@ class ReporterApp:
             raise ValueError("当前输出不是由本次报告生成，请重新生成")
         return self._last_import_artifacts
 
+    def _require_current_raw_import_code(self) -> str:
+        if (
+            self._current_report is None
+            or self._last_import_report_revision != self._report_revision
+            or self._last_raw_import_code is None
+        ):
+            raise ValueError("当前原始 JSON 不是由本次报告生成，请重新生成")
+        return self._last_raw_import_code
+
     def _current_import_code(self) -> str:
-        value = self._require_current_artifacts().raw_json
+        value = self._require_current_raw_import_code()
         catalog = load_pool_catalog(POOL_CATALOG_PATH)
         known_keys = {
             pool["key"]
@@ -1916,9 +2000,10 @@ class ReporterApp:
         return value
 
     def _artifact_value(self, artifact: str) -> tuple[str, str]:
+        if artifact == "raw":
+            return "原始 JSON", self._require_current_raw_import_code()
         artifacts = self._require_current_artifacts()
         values = {
-            "raw": ("原始 JSON", artifacts.raw_json),
             "compressed": ("压缩原始 JSON", artifacts.compressed_json),
             "base64": ("C1 Base64", artifacts.c1_base64),
             "base4096": ("C1 Base4096", artifacts.c1_base4096),

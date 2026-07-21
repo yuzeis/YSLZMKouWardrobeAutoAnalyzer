@@ -235,6 +235,85 @@ def test_persist_wechat_export_then_cleans_capture(tmp_path) -> None:
     clean.assert_called_once_with(app._active_session)
 
 
+def test_raw_wechat_export_persists_without_compact_artifacts(tmp_path) -> None:
+    app = object.__new__(ReporterApp)
+    app._active_session = tmp_path / "session"
+    app._current_report = {
+        "generated_at": "2026-07-21T10:00:00+08:00",
+        "persistence": {"state": "final", "path": "report.json"},
+    }
+    export_path = app._active_session / "wechat-export.json"
+    with mock.patch.object(
+        YKAApp, "persist_wechat_export", return_value=export_path
+    ) as persist:
+        result = app._persist_raw_wechat_export("[]", 261)
+
+    assert result == export_path
+    payload = persist.call_args.args[1]
+    assert payload["catalog_id"] is None
+    assert payload["codec_id"] is None
+    assert payload["transports"] == {"raw_json": "[]"}
+
+
+def test_raw_import_remains_available_when_compact_generation_fails(
+    tmp_path: Path,
+) -> None:
+    app = object.__new__(ReporterApp)
+    app._active_session = tmp_path / "session"
+    app._current_report = {
+        "generated_at": "2026-07-21T10:00:00+08:00",
+        "persistence": {"state": "final", "path": "report.json"},
+    }
+    app._report_revision = 4
+    app.target_image_width_var = mock.Mock()
+    app.target_image_width_var.get.return_value = "261"
+    app.import_text = object()
+    app.import_badge = _BadgeStub()
+    app._clear_import_output = mock.Mock()
+    app._replace_text = mock.Mock()
+    app._append_log = mock.Mock()
+    app._set_import_summary = mock.Mock()
+
+    raw_json = '[["p1",0,0]]'
+    import_result = SimpleNamespace(
+        code=raw_json,
+        records=(SimpleNamespace(pool_key="p1"),),
+        warnings=("保守匹配",),
+    )
+    events: list[str] = []
+
+    def persist_raw(_raw_json, _target_width):
+        events.append("raw_persisted")
+        return app._active_session / "wechat-export.json"
+
+    def fail_compact(*_args, **_kwargs):
+        events.append("compact_failed")
+        raise YKAApp.ArtifactError("compact failure")
+
+    app._persist_raw_wechat_export = mock.Mock(side_effect=persist_raw)
+    with mock.patch.object(
+        YKAApp, "generate_import_code_from_report", return_value=import_result
+    ), mock.patch.object(
+        YKAApp, "build_import_artifacts", side_effect=fail_compact
+    ), mock.patch.object(
+        YKAApp,
+        "cleanup_session_capture_files",
+        return_value={"removed_file_count": 1},
+    ) as cleanup, mock.patch.object(YKAApp.messagebox, "showwarning") as warning:
+        app.generate_wechat_code()
+
+    assert events == ["raw_persisted", "compact_failed"]
+    app._replace_text.assert_called_once_with(
+        app.import_text,
+        raw_json,
+        readonly=True,
+    )
+    assert app._artifact_value("raw") == ("原始 JSON", raw_json)
+    assert app.import_badge.label == "原始 JSON 已生成"
+    cleanup.assert_called_once_with(app._active_session)
+    warning.assert_called_once()
+
+
 def test_gacha_history_shows_only_observed_draw_quantity() -> None:
     history = {
         "entries": [

@@ -185,6 +185,69 @@ def test_in_memory_report_writes_nonzero_draw_count_without_report_file(
     assert result.observed_draw_pool_count == 1
 
 
+@pytest.mark.parametrize(
+    "report_catalog",
+    [
+        None,
+        {"status": "decode_error", "error": "new package format"},
+        {"status": "unavailable"},
+    ],
+)
+def test_complete_wardrobe_uses_frozen_catalog_when_local_catalog_is_unusable(
+    tmp_path: Path,
+    report_catalog: object,
+) -> None:
+    catalog = tmp_path / "catalog.json"
+    _write_catalog(catalog, [_pool("p1", 7)])
+    report = _report_object(_draw_evidence({"7": 23}, {"p1": 23}))
+    report["data_coverage"]["wardrobe_presence"]["catalog"] = report_catalog
+
+    result = generate_import_code_from_report(report, catalog)
+
+    assert _rows_by_key(result.code)["p1"][1] == 23
+    assert any("冻结小程序目录" in warning for warning in result.warnings)
+
+
+def test_frozen_catalog_fallback_still_rejects_incomplete_wardrobe(
+    tmp_path: Path,
+) -> None:
+    catalog = tmp_path / "catalog.json"
+    _write_catalog(catalog, [_pool("p1", 7)])
+    report = _report_object(_draw_evidence({"7": 23}, {"p1": 23}))
+    wardrobe = report["data_coverage"]["wardrobe_presence"]
+    wardrobe["catalog"] = {"status": "decode_error"}
+    wardrobe["snapshot_complete"] = False
+
+    with pytest.raises(ImportDataError, match="衣柜快照不完整"):
+        generate_import_code_from_report(report, catalog)
+
+
+def test_loaded_but_malformed_report_catalog_does_not_use_fallback(
+    tmp_path: Path,
+) -> None:
+    catalog = tmp_path / "catalog.json"
+    _write_catalog(catalog, [_pool("p1", 7)])
+    report = _report_object(_draw_evidence({"7": 23}, {"p1": 23}))
+    report["data_coverage"]["wardrobe_presence"]["catalog"] = {
+        "status": "loaded"
+    }
+
+    with pytest.raises(ImportDataError, match="静态服装目录版本无效"):
+        generate_import_code_from_report(report, catalog)
+
+
+def test_ambiguous_report_catalog_does_not_use_fallback(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog.json"
+    _write_catalog(catalog, [_pool("p1", 7)])
+    report = _report_object(_draw_evidence({"7": 23}, {"p1": 23}))
+    report["data_coverage"]["wardrobe_presence"]["catalog"] = {
+        "status": "ambiguous"
+    }
+
+    with pytest.raises(ImportDataError, match="没有可核验的静态服装目录"):
+        generate_import_code_from_report(report, catalog)
+
+
 def test_shared_lottery_pool_id_writes_same_value_to_both_aliases(
     tmp_path: Path,
 ) -> None:

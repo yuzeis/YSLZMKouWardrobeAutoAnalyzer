@@ -43,6 +43,7 @@ class WardrobeEvidence:
     standard_fashion_count: int
     catalog_sha256: str
     catalog_fashion_count: int
+    catalog_fallback_used: bool
 
 
 @dataclass(frozen=True)
@@ -502,7 +503,9 @@ def _draw_counts_for_catalog(
     )
 
 
-def _wardrobe_evidence_from_report(report: dict[str, Any]) -> WardrobeEvidence:
+def _wardrobe_evidence_from_report(
+    report: dict[str, Any], frozen_game_catalog: dict[str, Any]
+) -> WardrobeEvidence:
     coverage = report.get("data_coverage")
     if not isinstance(coverage, dict):
         raise ImportDataError("报告缺少 data_coverage")
@@ -551,14 +554,35 @@ def _wardrobe_evidence_from_report(report: dict[str, Any]) -> WardrobeEvidence:
         )
 
     catalog = wardrobe.get("catalog")
-    if not isinstance(catalog, dict) or catalog.get("status") != "loaded":
-        raise ImportDataError("报告没有可核验的静态服装目录")
-    catalog_sha256 = catalog.get("sha256")
-    catalog_fashion_count = catalog.get("fashion_catalog_count")
-    if not isinstance(catalog_sha256, str) or not isinstance(
-        catalog_fashion_count, int
+    catalog_fallback_used = False
+    if isinstance(catalog, dict) and catalog.get("status") == "loaded":
+        catalog_sha256 = catalog.get("sha256")
+        catalog_fashion_count = catalog.get("fashion_catalog_count")
+        if (
+            not isinstance(catalog_sha256, str)
+            or not isinstance(catalog_fashion_count, int)
+            or isinstance(catalog_fashion_count, bool)
+            or catalog_fashion_count <= 0
+        ):
+            raise ImportDataError("报告的静态服装目录版本无效")
+    elif catalog is None or (
+        isinstance(catalog, dict)
+        and catalog.get("status") in {"decode_error", "unavailable"}
     ):
-        raise ImportDataError("报告的静态服装目录版本无效")
+        catalog_sha256 = frozen_game_catalog.get("sha256")
+        catalog_fashion_count = frozen_game_catalog.get("fashion_catalog_count")
+        if (
+            not isinstance(catalog_sha256, str)
+            or not isinstance(catalog_fashion_count, int)
+            or isinstance(catalog_fashion_count, bool)
+            or catalog_fashion_count <= 0
+        ):
+            raise ImportDataError("冻结卡池目录的游戏服装版本无效")
+        if expected_count > catalog_fashion_count:
+            raise ImportDataError("完整衣柜数量超过冻结目录总数，拒绝回退生成")
+        catalog_fallback_used = True
+    else:
+        raise ImportDataError("报告没有可核验的静态服装目录")
 
     return WardrobeEvidence(
         generated_at=str(report.get("generated_at") or ""),
@@ -567,6 +591,7 @@ def _wardrobe_evidence_from_report(report: dict[str, Any]) -> WardrobeEvidence:
         standard_fashion_count=expected_count,
         catalog_sha256=catalog_sha256.upper(),
         catalog_fashion_count=catalog_fashion_count,
+        catalog_fallback_used=catalog_fallback_used,
     )
 
 
@@ -904,7 +929,8 @@ def generate_import_code_from_report(
         raise ImportDataError("详情图显示宽度必须是 120 到 1200 的整数")
 
     catalog = load_pool_catalog(catalog_path)
-    evidence = _wardrobe_evidence_from_report(report)
+    game_catalog = catalog["game_catalog"]
+    evidence = _wardrobe_evidence_from_report(report, game_catalog)
     coverage = report.get("data_coverage", {})
     draw_evidence = (
         coverage.get("draw_count") if isinstance(coverage, dict) else None
@@ -912,7 +938,6 @@ def generate_import_code_from_report(
     photo_ids, photo_snapshot_ok = _photo_snapshot_ids(
         coverage.get("photo_info") if isinstance(coverage, dict) else None
     )
-    game_catalog = catalog["game_catalog"]
     catalog_sha256 = str(game_catalog["sha256"]).upper()
     if evidence.catalog_sha256 != catalog_sha256:
         raise ImportDataError("报告与卡池目录使用的游戏服装版本不同，拒绝生成")
@@ -1046,6 +1071,13 @@ def generate_import_code_from_report(
         "扩裙、全扩、特姿、裙幻组合与千幻由静态色盘容量、"
         "衣柜色盘位图和服装 evolution 阶段共同推断；不可染部件不参与染色阶段判定。",
     ]
+    if evidence.catalog_fallback_used:
+        warnings.insert(
+            0,
+            "本机静态服装目录与当前解析器版本不兼容；已仅依据完整衣柜快照和"
+            "冻结小程序目录中的既有服装 ID 进行保守匹配；未被该目录引用的服装"
+            "无法写入本协议，也不参与卡池状态推导。",
+        )
     if draw_import.snapshot_usable:
         warnings.insert(
             0,

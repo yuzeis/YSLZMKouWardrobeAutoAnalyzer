@@ -59,6 +59,16 @@ class _ImmediateThread:
         self.target()
 
 
+def test_startup_schedules_environment_check() -> None:
+    app = object.__new__(ReporterApp)
+    app.root = _RootStub()
+    app.run_preflight = mock.Mock()
+
+    ReporterApp._schedule_startup_preflight(app)
+
+    assert app.root.after_calls == [(700, app.run_preflight)]
+
+
 def test_release_metadata_is_finalized() -> None:
     assert APP_NAME == "YSLZMKouWardrobeAutoAnalyzer"
     assert APP_VERSION == "ver1.0-beta1"

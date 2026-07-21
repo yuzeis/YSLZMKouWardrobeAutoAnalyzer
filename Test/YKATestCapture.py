@@ -599,6 +599,33 @@ def test_frozen_start_background_uses_same_executable(
     assert r"\Device\NPF_TEST" in captured_arguments
 
 
+def test_preflight_failure_text_explains_missing_dependencies_and_probe() -> None:
+    message = collector.format_preflight_failure(
+        {
+            "required_components": {
+                "npcap": {"installed": False, "ready": False},
+                "scapy": {"installed": True, "ready": False},
+            },
+            "scapy": {"error": "ImportError: pcap backend unavailable"},
+            "game_executables": [],
+            "known_launchers": [],
+            "selected_interface_names": [],
+            "selection_reason": "no_active_ipv4_interface",
+            "capture_probe": {
+                "attempted": True,
+                "ready": False,
+                "error": "PermissionError: access denied",
+            },
+        }
+    )
+
+    assert "Npcap" in message
+    assert "Scapy/Npcap" in message
+    assert "以闪亮之名客户端" in message
+    assert "no_active_ipv4_interface" in message
+    assert "PermissionError: access denied" in message
+
+
 def test_collector_start_lock_rejects_parallel_start(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

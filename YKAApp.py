@@ -52,6 +52,7 @@ from YKAWechatImport import (
 )
 from YKACollector import (
     current_capture_status,
+    format_preflight_failure,
     preflight,
     request_stop,
     run_watch,
@@ -438,6 +439,7 @@ class ReporterApp:
         self._build_layout()
         self.root.after(100, self._drain_events)
         self.root.after(500, self._poll_collector_status)
+        self._schedule_startup_preflight()
 
     # ------------------------------------------------------------------ 布局
     def _build_layout(self) -> None:
@@ -1098,6 +1100,9 @@ class ReporterApp:
             widget.configure(state="disabled")
 
     # ---------------------------------------------------------------- 采集
+    def _schedule_startup_preflight(self) -> None:
+        self.root.after(700, self.run_preflight)
+
     def run_preflight(self) -> None:
         self._submit("环境检查", preflight, self._show_preflight)
 
@@ -1119,16 +1124,26 @@ class ReporterApp:
         npcap_ready = isinstance(npcap, dict) and bool(npcap.get("ready"))
         scapy_installed = isinstance(scapy, dict) and bool(scapy.get("installed"))
         scapy_ready = isinstance(scapy, dict) and bool(scapy.get("ready"))
+        failure_summary = ""
+        if not ready:
+            failure_summary = str(result.get("failure_summary") or "").strip()
+            if not failure_summary:
+                failure_summary = format_preflight_failure(result)
         self.environment_badge.set(
             "ok" if ready else "warn", "可采集" if ready else "未就绪"
         )
-        self.environment_var.set(
+        environment_text = (
             f"后端 {backend}；网卡 {', '.join(interfaces) if interfaces else '-'}；"
             f"Npcap {'就绪' if npcap_ready else ('已安装但不可用' if npcap_installed else '缺失')}；"
             f"Scapy {'就绪' if scapy_ready else ('已安装' if scapy_installed else '缺失')}；"
             f"游戏进程 {len(game_files)}"
         )
+        if failure_summary:
+            environment_text += "；" + failure_summary.replace("\n", "；")
+        self.environment_var.set(environment_text)
         self._append_log(json.dumps(result, ensure_ascii=False, indent=2))
+        if failure_summary:
+            self._append_log(failure_summary)
         missing = [
             name
             for name, present in (("Npcap", npcap_installed), ("Scapy", scapy_installed))

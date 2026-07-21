@@ -164,9 +164,63 @@ def preflight() -> dict[str, Any]:
             and analysis_ready
         ),
     }
+    if not result["ready"]:
+        result["failure_summary"] = format_preflight_failure(result)
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     atomic_write_json(RUNTIME_DIR / "preflight.json", result)
     return result
+
+
+def format_preflight_failure(result: dict[str, Any]) -> str:
+    """Return a user-facing explanation for a failed capture preflight."""
+    reasons: list[str] = []
+    components = result.get("required_components", {})
+    if not isinstance(components, dict):
+        components = {}
+
+    npcap = components.get("npcap", {})
+    if not isinstance(npcap, dict) or not npcap.get("installed"):
+        reasons.append("未检测到 Npcap；请安装 Npcap 后重新检查环境。")
+    elif not npcap.get("ready"):
+        service_status = str(npcap.get("service_status") or "未知")
+        reasons.append(f"Npcap 已安装但不可用（服务状态：{service_status}）。")
+
+    scapy = components.get("scapy", {})
+    if not isinstance(scapy, dict) or not scapy.get("installed"):
+        reasons.append("程序内置的 Scapy 组件不可用；请重新获取完整发布包。")
+    elif not scapy.get("ready"):
+        scapy_detail = result.get("scapy", {})
+        error = (
+            str(scapy_detail.get("error") or "")
+            if isinstance(scapy_detail, dict)
+            else ""
+        )
+        reasons.append(
+            "Scapy/Npcap 抓包后端未就绪"
+            + (f"（{error}）" if error else "。")
+        )
+
+    game_files = result.get("game_executables", [])
+    known_launchers = result.get("known_launchers", [])
+    if not game_files and not known_launchers:
+        reasons.append("未发现以闪亮之名客户端；请确认游戏已安装在本机。")
+
+    interfaces = result.get("selected_interface_names", [])
+    if not interfaces:
+        selection_reason = str(result.get("selection_reason") or "未找到可用网卡")
+        reasons.append(f"未选择可抓包的活动网卡（{selection_reason}）。")
+
+    probe = result.get("capture_probe", {})
+    if isinstance(probe, dict) and not probe.get("ready"):
+        error = str(probe.get("error") or "")
+        if error:
+            reasons.append(f"抓包权限或网卡探测失败：{error}")
+        elif probe.get("attempted"):
+            reasons.append("抓包网卡探测未通过。")
+
+    if not reasons:
+        reasons.append("抓包后端尚未就绪，请重新执行环境检查。")
+    return "采集环境未就绪：\n" + "\n".join(f"- {reason}" for reason in reasons)
 
 
 class _ProcessEntry32W(ctypes.Structure):
@@ -647,7 +701,7 @@ def _start_background_locked() -> dict[str, Any]:
 
     check = preflight()
     if not check["ready"]:
-        raise RuntimeError("preflight failed; inspect runtime/preflight.json")
+        raise RuntimeError(format_preflight_failure(check))
     session_id = datetime.now().strftime("%Y%m%dT%H%M%S-%f")
     session_dir = SESSIONS_DIR / session_id
     session_dir.mkdir(parents=True, exist_ok=False)

@@ -23,6 +23,7 @@ GP_DIY_FASHION_DATA = 722
 GP_FASHION_OBTAIN_SUIT = 734
 GP_LUCKYDRAW_OPERATE_RE = 737
 GP_PHOTO_INFO = 637
+GP_PHOTO_OPERATE_RE = 740
 TARGET_GAME_MESSAGE_IDS = {
     GP_FASHION_INFO,
     GP_ACTIVE_FASHION,
@@ -32,6 +33,7 @@ TARGET_GAME_MESSAGE_IDS = {
     GP_FASHION_OBTAIN_SUIT,
     GP_LUCKYDRAW_OPERATE_RE,
     GP_PHOTO_INFO,
+    GP_PHOTO_OPERATE_RE,
 }
 
 
@@ -587,7 +589,7 @@ def _normalize_photo_catalog(
 ) -> dict[str, dict[str, Any]]:
     if not photo_catalog:
         return {}
-    # v3 pool catalog maps real scene IDs to background keys; never infer IDs from bgN.
+    # Schema v5 maps command-740 tmp_ids directly to shot_cfg.Scene lock_ids.
     if isinstance(photo_catalog.get("pools"), list):
         normalized: dict[str, dict[str, Any]] = {}
         for entry in photo_catalog["pools"]:
@@ -596,12 +598,12 @@ def _normalize_photo_catalog(
             kind = str(entry.get("att_type", entry.get("attType", entry.get("pool_type", entry.get("type", entry.get("kind", "")))))).lower()
             if kind not in {"attbg", "background", "bg"}:
                 continue
-            scene_ids = entry.get("scene_ids") or []
-            if not isinstance(scene_ids, list):
+            shot_src_ids = entry.get("shot_src_ids") or []
+            if not isinstance(shot_src_ids, list):
                 continue
             key = entry.get("key") or entry.get("pool_key") or entry.get("name")
-            for scene_id in scene_ids:
-                normalized[str(scene_id)] = {"key": key, "name": entry.get("name")}
+            for lock_id in shot_src_ids:
+                normalized[str(lock_id)] = {"key": key, "name": entry.get("name")}
         return normalized
     raw = photo_catalog
     if isinstance(photo_catalog.get("records"), list):
@@ -634,9 +636,7 @@ def _analyze_photo_info(
     parse_errors: list[str] = []
     complete_frames = 0
     error_frames = 0
-    background_catalog = _normalize_photo_catalog(photo_catalog)
-    background_catalog_match_count = 0
-    photo_ids_without_catalog: set[int] = set()
+    # Command 637 is the avatar/portrait and profile-frame snapshot, not scene ownership.
     for message in responses:
         parsed = parse_protobuf(message.payload)
         error_code = _first_varint(parsed, 3)
@@ -663,33 +663,12 @@ def _analyze_photo_info(
             for raw in raw_values:
                 nested = parse_protobuf(raw)
                 photo_id = _first_varint(nested, 1)
-                photo_match = background_catalog.get(str(photo_id)) if (number == 2 and photo_id is not None) else None
-                if number == 2 and photo_match is None and photo_id is not None:
-                    photo_ids_without_catalog.add(photo_id)
-                elif number == 2 and photo_match is not None:
-                    background_catalog_match_count += 1
                 frame[f"field{number}_photo_info"].append({
                     "raw": raw.hex(),
                     "complete": nested.complete,
                     "observed_fields": sorted({f.number for f in nested.fields}),
                     "id": photo_id,
                     "timestamp": _first_varint(nested, 2),
-                    "background_catalog_match": (
-                        {
-                            "key": photo_match.get("key"),
-                            "name": (
-                                photo_match.get("name")
-                                or (photo_match.get("texts") or [None])[0]
-                            ),
-                            "score": (
-                                photo_match.get("score")
-                                or photo_match.get("best_score")
-                                or (photo_match.get("scores") or [None])[0]
-                            ),
-                        }
-                        if number == 2 and photo_match
-                        else None
-                    ),
                 })
                 frame["photo_ids" if number == 2 else "photo_decos"].append(
                     frame[f"field{number}_photo_info"][-1]
@@ -712,18 +691,140 @@ def _analyze_photo_info(
         "field3_count": sum(len(r["field3_photo_info"]) for r in records),
         "count": sum(len(r["field2_photo_info"]) + len(r["field3_photo_info"]) for r in records),
         "background_catalog": {
-            "status": "loaded" if background_catalog else "unavailable",
-            "matched_records": background_catalog_match_count,
-            "unmapped_ids": sorted(photo_ids_without_catalog),
-            "catalog_size": len(background_catalog),
+            "status": "not_applicable",
+            "matched_records": 0,
+            "unmapped_ids": [],
+            "catalog_size": 0,
         },
         "completeness": bool(responses) and not has_partial and not error_frames and complete_frames == observed_frames,
         "partial_flag": 1 if has_partial or error_frames or complete_frames != observed_frames else 0,
         "records": records,
         "parse_errors": parse_errors,
         "semantics": (
-            "仅报告命令637中观察到的原始field2/field3及可直接读取的ID/timestamp；"
-            "当提供背景目录时同时尝试输出对应背景映射，未匹配的仍保持unknown。"
+            "命令637 field2 是头像/肖像 ID，field3 是头像框/照片装饰 ID；"
+            "两者均不得用于拍照场景或氪背所有权。"
+        ),
+    }
+
+
+def _analyze_photo_operate(
+    messages: list[GameMessage],
+    photo_catalog: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Decode command-740's owned shot-source lock snapshot (field 6 triples)."""
+    responses = [m for m in messages if m.command_id == GP_PHOTO_OPERATE_RE]
+    records: list[dict[str, Any]] = []
+    errors: list[str] = []
+    valid_frames = 0
+    op1_frames = 0
+    duplicate_ids: set[int] = set()
+    background_catalog = _normalize_photo_catalog(photo_catalog)
+    for message in responses:
+        parsed = parse_protobuf(message.payload)
+        op_types = protobuf_varints(parsed, 2)
+        errcodes = protobuf_varints(parsed, 3)
+        singular_wire_error = any(
+            field.number in {2, 3} and field.wire_type != 0
+            for field in parsed.fields
+        )
+        op_type = op_types[0] if op_types else None
+        errcode = errcodes[0] if errcodes else None
+        triples: list[tuple[int, int, int]] = []
+        valid = (parsed.complete and not singular_wire_error and len(op_types) == 1
+                 and len(errcodes) <= 1 and op_type == 1 and errcode in (None, 0))
+        values: list[int] = []
+        for value in protobuf_varints(parsed, 6):
+            values.append(_signed_int32(value))
+        field_error = False
+        for packed in protobuf_bytes(parsed, 6):
+            position = 0
+            try:
+                while position < len(packed):
+                    value, position = read_protobuf_varint(packed, position)
+                    values.append(_signed_int32(value))
+            except (EOFError, ValueError):
+                valid = False
+                field_error = True
+        frame_ids: set[int] = set()
+        if len(values) % 3:
+            valid = False
+        else:
+            for index in range(0, len(values), 3):
+                tmp_id, count, unlock_time = values[index:index + 3]
+                if tmp_id <= 0 or count < 0 or unlock_time < 0:
+                    valid = False
+                    continue
+                if tmp_id in frame_ids:
+                    duplicate_ids.add(tmp_id)
+                    valid = False
+                    continue
+                frame_ids.add(tmp_id)
+                triples.append((tmp_id, count, unlock_time))
+        if op_type == 1:
+            op1_frames += 1
+        if valid:
+            valid_frames += 1
+        elif op_type == 1:
+            errors.append(f"gp_photo_operate_re at {message.frame_offset} invalid snapshot")
+        records.append({
+            "frame_offset": message.frame_offset,
+            "op_type": op_type,
+            "errcode": errcode,
+            "complete": valid,
+            "field6_value_count": len(values),
+            "source_command": GP_PHOTO_OPERATE_RE,
+            "source_field": 6,
+            "field6_error": field_error,
+            "triples": [
+                {"tmp_id": item[0], "count": item[1], "unlock_time": item[2]}
+                for item in triples
+            ],
+        })
+    snapshot_complete = (
+        len(responses) == 1
+        and op1_frames == 1
+        and valid_frames == 1
+        and not errors
+        and not duplicate_ids
+    )
+    owned_tmp_ids = sorted({item["tmp_id"] for record in records if record["complete"] for item in record["triples"] if item["count"] > 0})
+    matched_backgrounds = {
+        background_catalog[str(tmp_id)]["key"]: {
+            "key": background_catalog[str(tmp_id)]["key"],
+            "name": background_catalog[str(tmp_id)].get("name"),
+            "lock_id": tmp_id,
+        }
+        for tmp_id in owned_tmp_ids
+        if str(tmp_id) in background_catalog
+    }
+    return {
+        **_evidence_metadata(responses),
+        "status": "unobserved" if not responses else ("observed_absent" if snapshot_complete and not any(r["triples"] for r in records) else ("observed_present" if snapshot_complete else "partial")),
+        "observed_frames": len(responses),
+        "complete_frames": valid_frames,
+        "record_count": sum(len(r["triples"]) for r in records),
+        "field6_value_count": sum(r["field6_value_count"] for r in records),
+        "duplicate_tmp_ids": sorted(duplicate_ids),
+        "source_command": GP_PHOTO_OPERATE_RE,
+        "op_type": 1,
+        "source_field": "gp_photo_operate_re.param3 (protobuf field 6 triples)",
+        "snapshot_observed": op1_frames > 0,
+        "snapshot_complete": snapshot_complete,
+        "completeness": snapshot_complete,
+        "owned_tmp_ids": owned_tmp_ids,
+        "background_catalog": {
+            "status": "loaded" if background_catalog else "unavailable",
+            "matched_records": len(matched_backgrounds),
+            "matched_backgrounds": sorted(
+                matched_backgrounds.values(), key=lambda item: item["key"]
+            ),
+            "catalog_size": len(background_catalog),
+        },
+        "records": records,
+        "parse_errors": errors,
+        "semantics": (
+            "命令740 op_type=1的完整field6快照记录已拥有的拍照来源 lock_id；"
+            "场景所有权必须用tmp_id直接匹配shot_cfg.Scene.lock_id，count>0表示拥有。"
         ),
     }
 
@@ -967,6 +1068,7 @@ def analyze_game_messages(
         by_id[message.command_id] += 1
     lottery = _analyze_lottery(message_list, lottery_catalog=lottery_catalog)
     photo_info = _analyze_photo_info(message_list, photo_catalog=photo_catalog)
+    shot_src_unlocks = _analyze_photo_operate(message_list, photo_catalog=photo_catalog)
     return {
         "game_message_counts": {
             str(command_id): by_id[command_id] for command_id in sorted(by_id)
@@ -976,6 +1078,7 @@ def analyze_game_messages(
             "gacha_history": lottery["gacha_history"],
             "pool_presence": lottery["pool_presence"],
             "photo_info": photo_info,
+            "shot_src_unlocks": shot_src_unlocks,
             "wardrobe_presence": _analyze_wardrobe(
                 message_list, wardrobe_ack_cursors
             ),

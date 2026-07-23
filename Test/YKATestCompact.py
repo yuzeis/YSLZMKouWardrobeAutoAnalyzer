@@ -333,7 +333,7 @@ def test_artifacts_are_generated_atomically_and_preserve_draw_counts() -> None:
     )
     assert artifacts.raw_json == code
     assert artifacts.codec_id == 3
-    assert artifacts.catalog_id == "00000101"
+    assert artifacts.catalog_id == "00000102"
     assert len(artifacts.compressed_json) < len(code)
     assert len(artifacts.c1_base4096) < len(artifacts.c1_base64)
     with pytest.raises(codec.ArtifactError, match="原始 JSON"):

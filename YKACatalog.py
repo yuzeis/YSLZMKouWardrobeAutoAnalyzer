@@ -403,7 +403,7 @@ SOURCE = DATA_ROOT / "YKAPoolCatalog.json"
 OUT = DATA_ROOT / "YKACompactCatalog.json"
 REGISTRY = DATA_ROOT / "YKACompactRegistry.json"
 SCALE = 1_000_000
-CATALOG_ID = "00000101"
+CATALOG_ID = "00000102"
 DEFAULT_WIDTH = 261
 
 

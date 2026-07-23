@@ -59,6 +59,7 @@ from YKACollector import (
     start_background,
 )
 from YKACapture import inspect_npcap, inspect_scapy, list_scapy_interfaces
+from YKAConfigManager import ConfigSnapshot, get_default_config_manager
 from YKACore import SESSIONS_DIR, now_iso
 from YKAEnvironment import guide_install_npcap, install_scapy
 from YKAReport import (
@@ -70,7 +71,7 @@ from YKAReport import (
 
 
 APP_NAME = "YSLZMKouWardrobeAutoAnalyzer"
-APP_VERSION = "ver1.0-beta1"
+APP_VERSION = "ver1.1"
 APP_CODENAME = "Gnadenfülle"
 APP_TITLE = f"{APP_NAME} {APP_VERSION} - {APP_CODENAME}"
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -80,9 +81,7 @@ COMPACT_CATALOG_PATH = RESOURCE_ROOT / "DatAnDict" / "YKACompactCatalog.json"
 COMPACT_REGISTRY_PATH = RESOURCE_ROOT / "DatAnDict" / "YKACompactRegistry.json"
 PROTOCOL_SPEC_PATH = RESOURCE_ROOT / "Docs" / "YKAProtocolSpec.md"
 LICENSE_PATH = RESOURCE_ROOT / "LICENSE"
-SOURCE_REPOSITORY_URL = (
-    "https://github.com/yuzeis/YSLZMKouWardrobeAutoAnalyzer"
-)
+SOURCE_REPOSITORY_URL = "https://github.com/yuzeis/YSLZMKouWardrobeAutoAnalyzer"
 LIVE_ANALYSIS_INTERVAL_SECONDS = 2.0
 LIVE_CAPTURE_STATES = frozenset({"waiting_for_game", "capturing"})
 
@@ -369,8 +368,8 @@ def capture_traffic_feedback(status: dict[str, Any]) -> tuple[str, str, bool]:
 
     if has_packets:
         if exact_count and packets > 0:
-            return "ok", f"已抓到 · {packets} 个 9227 端口包", True
-        return "ok", "已抓到 · 检测到 9227 端口数据", True
+            return "ok", f"已抓到 · {packets} 个网络包，正在识别游戏协议", True
+        return "ok", "已抓到 · 正在识别游戏协议", True
     if state == "failed":
         return "error", "采集失败", False
     if state in {
@@ -380,9 +379,9 @@ def capture_traffic_feedback(status: dict[str, Any]) -> tuple[str, str, bool]:
         "draining_capture",
         "stop_pending",
     }:
-        return "run", "尚未抓到 · 等待 9227 游戏流量", False
+        return "run", "尚未抓到 · 等待目标游戏流量", False
     if state in {"analyzing", "stopped"}:
-        return "warn", "未抓到 · 本次没有 9227 端口流量", False
+        return "warn", "未识别 · 本次没有匹配的游戏协议流", False
     return "empty", "尚未开始", False
 
 
@@ -425,6 +424,8 @@ class ReporterApp:
         self._live_analysis_retry_count = 0
         self._live_decode_warning = ""
         self._live_browse_badges: dict[str, dict[str, Any]] = {}
+        self._config_manager = get_default_config_manager()
+        self._capture_config_snapshot: ConfigSnapshot | None = None
 
         self.capture_state_var = tk.StringVar(value="未开始")
         self.session_var = tk.StringVar(value="-")
@@ -440,6 +441,7 @@ class ReporterApp:
         self.root.after(100, self._drain_events)
         self.root.after(500, self._poll_collector_status)
         self._schedule_startup_preflight()
+        self._config_manager.start_background_check()
 
     # ------------------------------------------------------------------ 布局
     def _build_layout(self) -> None:
@@ -1080,7 +1082,7 @@ class ReporterApp:
                 badge.set("warn", "等待可解码连接")
             if warning != previous_warning:
                 self._append_log(
-                    "检测到 9227 游戏流量，但服务端流无法解码。"
+                    "检测到候选游戏流量，但当前协议无法完整解码。"
                     "请保持采集运行并重启游戏，再浏览相关页面。"
                 )
         elif previous_warning:
@@ -1178,6 +1180,10 @@ class ReporterApp:
         return preflight()
 
     def start_capture(self) -> None:
+        manager = getattr(self, "_config_manager", None)
+        self._capture_config_snapshot = (
+            manager.load_snapshot() if manager is not None else None
+        )
         self._submit("启动采集", start_background, self._show_started)
 
     def _show_started(self, result: dict[str, Any]) -> None:
@@ -1186,7 +1192,14 @@ class ReporterApp:
         session_value = result.get("session_dir")
         if isinstance(session_value, str) and session_value:
             try:
-                live_report = build_live_coverage(Path(session_value))
+                live_report = build_live_coverage(
+                    Path(session_value),
+                    config_snapshot=getattr(
+                        self,
+                        "_capture_config_snapshot",
+                        None,
+                    ),
+                )
                 persistence = live_report.get("persistence", {})
                 if isinstance(persistence, dict) and persistence.get("path"):
                     self._append_log(f"实时报告：{persistence['path']}")
@@ -1194,7 +1207,7 @@ class ReporterApp:
                 self._append_log(f"初始化实时报告失败：{error}")
         self._append_log("采集器已启动。现在正常进入游戏并浏览需要记录的页面即可。")
         self._append_log(
-            "游戏流量提示当前为“尚未抓到”；检测到 TCP/UDP 9227 数据后会自动变为绿色“已抓到”。"
+            "捕获到网络数据后会先显示“正在识别游戏协议”；只有解析门通过后才会生成结果。"
         )
 
     def stop_capture(self) -> None:
@@ -1213,7 +1226,14 @@ class ReporterApp:
         session_value = status.get("session_dir")
         if not isinstance(session_value, str) or not session_value:
             raise RuntimeError("采集器没有返回会话目录")
-        report = build_session_report(Path(session_value))
+        report = build_session_report(
+            Path(session_value),
+            config_snapshot=getattr(
+                self,
+                "_capture_config_snapshot",
+                None,
+            ),
+        )
         persistence = report.get("persistence", {})
         report_path = (
             persistence.get("path") if isinstance(persistence, dict) else None
@@ -1323,10 +1343,14 @@ class ReporterApp:
         self._live_analysis_inflight = True
         self._live_analysis_last_started = now
         self._live_analysis_last_revision = revision
+        config_snapshot = getattr(self, "_capture_config_snapshot", None)
 
         def runner() -> None:
             try:
-                report = build_live_coverage(session_dir)
+                report = build_live_coverage(
+                    session_dir,
+                    config_snapshot=config_snapshot,
+                )
             except Exception as error:
                 self._events.put(
                     (
@@ -1445,6 +1469,7 @@ class ReporterApp:
         draw = coverage.get("draw_count", {})
         history = coverage.get("gacha_history", {})
         photo = coverage.get("photo_info", {})
+        shot = coverage.get("shot_src_unlocks", {})
         if not isinstance(wardrobe, dict):
             wardrobe = {}
         if not isinstance(pool, dict):
@@ -1455,6 +1480,8 @@ class ReporterApp:
             history = {}
         if not isinstance(photo, dict):
             photo = {}
+        if not isinstance(shot, dict):
+            shot = {}
 
         wardrobe_count = cls._nonnegative_int(wardrobe.get("fashion_count"))
         standard_count = cls._nonnegative_int(
@@ -1478,13 +1505,15 @@ class ReporterApp:
             and draw.get("completeness")
         )
         photo_count = cls._nonnegative_int(photo.get("count"))
-        photo_catalog = photo.get("background_catalog", {})
+        owned_shot_ids = shot.get("owned_tmp_ids", [])
+        shot_count = len(owned_shot_ids) if isinstance(owned_shot_ids, list) else 0
+        photo_catalog = shot.get("background_catalog", {})
         if not isinstance(photo_catalog, dict):
             photo_catalog = {}
         background_count = cls._nonnegative_int(
             photo_catalog.get("matched_records")
         )
-        photo_complete = bool(photo.get("completeness"))
+        photo_complete = bool(shot.get("completeness"))
 
         if draw_complete:
             history_badge = {
@@ -1563,18 +1592,18 @@ class ReporterApp:
                 },
                 "background": {
                     "semantic": (
-                        "ok" if photo_complete else ("warn" if photo_count else "empty")
+                        "ok" if photo_complete else ("warn" if shot_count else "empty")
                     ),
                     "label": (
-                        f"已浏览 · {background_count}/{photo_count}"
+                        f"已浏览 · {background_count} 个氪背"
                         if photo_complete
                         else (
-                            f"部分 · {background_count}/{photo_count}"
-                            if photo_count
+                            f"部分 · {background_count} 个氪背"
+                            if shot_count
                             else "未观测 · 0"
                         )
                     ),
-                    "progress": (photo_count, background_count),
+                    "progress": (background_count, shot_count),
                 },
             },
         }
@@ -1814,9 +1843,15 @@ class ReporterApp:
             if self._current_report is None:
                 raise ImportDataError("尚未生成最终报告，请先完成一次采集")
             target_width = int(self.target_image_width_var.get().strip())
+            config_snapshot = getattr(self, "_capture_config_snapshot", None)
+            pool_catalog = (
+                config_snapshot.pool_catalog
+                if config_snapshot is not None
+                else POOL_CATALOG_PATH
+            )
             result = generate_import_code_from_report(
                 self._current_report,
-                POOL_CATALOG_PATH,
+                pool_catalog,
                 target_image_width_px=target_width,
             )
         except (ImportDataError, KeyError, OSError, TypeError, ValueError) as error:
@@ -1838,10 +1873,20 @@ class ReporterApp:
             self._append_log(f"原始微信导入 JSON 落盘失败：{error}")
 
         try:
+            compact_catalog = (
+                config_snapshot.compact_catalog
+                if config_snapshot is not None
+                else COMPACT_CATALOG_PATH
+            )
+            compact_registry = (
+                config_snapshot.compact_registry
+                if config_snapshot is not None
+                else COMPACT_REGISTRY_PATH
+            )
             artifacts = build_import_artifacts(
                 result.code,
-                catalog_path=COMPACT_CATALOG_PATH,
-                registry_path=COMPACT_REGISTRY_PATH,
+                catalog_path=compact_catalog,
+                registry_path=compact_registry,
                 target_width=target_width,
                 expected_pool_keys=tuple(
                     record.pool_key for record in result.records
@@ -1982,7 +2027,12 @@ class ReporterApp:
 
     def _current_import_code(self) -> str:
         value = self._require_current_raw_import_code()
-        catalog = load_pool_catalog(POOL_CATALOG_PATH)
+        config_snapshot = getattr(self, "_capture_config_snapshot", None)
+        catalog = load_pool_catalog(
+            config_snapshot.pool_catalog
+            if config_snapshot is not None
+            else POOL_CATALOG_PATH
+        )
         known_keys = {
             pool["key"]
             for pool in catalog.get("pools", [])

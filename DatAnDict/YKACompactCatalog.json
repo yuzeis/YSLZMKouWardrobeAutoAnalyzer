@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_id": "00000101",
+  "catalog_id": "00000102",
   "scale": 1000000,
   "default_width": 261,
   "status_count": 11,
@@ -15585,11 +15585,11 @@
     },
     {
       "key": "bg121",
-      "name": null
+      "name": "温情咖啡"
     },
     {
       "key": "bg122",
-      "name": null
+      "name": "晴海盛夏"
     },
     {
       "key": "bg123",
@@ -15629,5 +15629,5 @@
     "261": "075dc580e8ba5af01c86cb3d27eb44b69bd3686cd943a1cd7afbf3654435823a",
     "1200": "8a1f79a16c2c3a408c6c0727a4190463a7095ac0827329673f05d64ad83afab1"
   },
-  "content_sha256": "9349b22af4d51136df82b3a5407f21edddd7d2c40a45e7a9576459d633884ba5"
+  "content_sha256": "1bb7c176273646800933c686e8a3c57ca021b981a03cad3030f0c547203a0ec3"
 }

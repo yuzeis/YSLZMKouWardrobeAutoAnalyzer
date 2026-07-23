@@ -54,8 +54,9 @@ def scapy_installed() -> bool:
 def inspect_environment() -> dict[str, Any]:
     """Check the minimal components, Npcap service, interface, and live probe."""
     from YKACapture import inspect_capture_environment
+    from YKACore import GAME_CAPTURE_FILTER
 
-    capture = inspect_capture_environment("tcp port 9227 or udp port 9227")
+    capture = inspect_capture_environment(GAME_CAPTURE_FILTER)
     components = capture.get("required_components", {})
     npcap_component = components.get("npcap", {}) if isinstance(components, dict) else {}
     scapy_component = components.get("scapy", {}) if isinstance(components, dict) else {}

@@ -1,6 +1,6 @@
 # YSLZMKouWardrobeAutoAnalyzer
 
-当前版本：`ver1.0-beta1`，版本代号：`Gnadenfülle`。
+当前版本：`ver1.1`，版本代号：`Gnadenfülle`。
 
 这是 Windows PC 版《以闪亮之名》的被动采集与微信导入码生成工具。程序只读取本机游戏流量，不抽卡、不注入或重放请求、不操作微信，也不上传数据。
 
@@ -25,7 +25,7 @@ python YKAApp.py
 也可以双击 `YKAStart.bat`。
 
 正式发布的 Windows x64 单文件版本可直接运行
-`YSLZMKouWardrobeAutoAnalyzer-ver1.0-beta1-windows-x64.exe`。Npcap 仍是系统级
+`YSLZMKouWardrobeAutoAnalyzer-ver1.1-windows-x64.exe`。Npcap 仍是系统级
 抓包组件；如未安装，程序会在用户确认后打开官方安装流程。
 
 管理员权限确认完成后，正常启动 GUI 会依次显示账号与法律风险、AGPL-3.0-only 开源许可、
@@ -98,7 +98,7 @@ python -m PyInstaller --noconfirm --clean Packaging\YSLZMKouWardrobeAutoAnalyzer
 写出机器可读结果：
 
 ```powershell
-YSLZMKouWardrobeAutoAnalyzer-ver1.0-beta1-windows-x64.exe `
+YSLZMKouWardrobeAutoAnalyzer-ver1.1-windows-x64.exe `
   --smoke-test --smoke-output smoke.json
 ```
 
@@ -119,6 +119,6 @@ AGPL-3.0-only 允许第三方依法收费传播副本或提供服务，此类行
 官方收费。如项目内容被确认侵犯第三方合法权利，维护者将在收到可核验的权利
 通知后 12 小时内下架或删除相关内容或版本。
 
-本 beta 版的根级 Python 模块不是稳定的外部 API。功能链合并后不保留旧模块名的转发文件；外部脚本应按上表当前模块导入。
+本正式版的根级 Python 模块不是稳定的外部 API。功能链合并后不保留旧模块名的转发文件；外部脚本应按上表当前模块导入。
 
 源码包不包含真实会话、抓包或报告。

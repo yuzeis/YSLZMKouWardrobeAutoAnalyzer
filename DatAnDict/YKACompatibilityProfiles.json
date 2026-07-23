@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "active_profile_id": "yslzm-cn-compact-mppc-v1",
+  "profiles": [
+    {
+      "profile_id": "yslzm-cn-compact-mppc-v1",
+      "package_names": [
+        "com.zulong.yslzm"
+      ],
+      "known_version_codes": [
+        1049,
+        1072
+      ],
+      "service_ports": [
+        9227
+      ],
+      "transport": "compact-mppc-v1",
+      "protocol_signature": {
+        "client_authentication_type_ids": [
+          3
+        ],
+        "server_handshake_type_ids": [
+          1,
+          68
+        ],
+        "key_exchange_type_ids": [
+          2
+        ],
+        "server_business_wrapper_type_ids": [
+          34
+        ]
+      },
+      "business_opcodes": {
+        "fashion_info_ack": [143],
+        "fashion_info": [576],
+        "active_fashion": [577],
+        "fashion_expire": [609],
+        "fashion_renew": [610],
+        "photo_info": [637],
+        "diy_fashion_data": [722],
+        "fashion_obtain_suit": [734],
+        "luckydraw_operate_re": [737],
+        "photo_operate_re": [740]
+      },
+      "business_schema_id": "yslzm-business-v1",
+      "catalog_bundle_id": "00000102",
+      "parser_version": 1
+    }
+  ]
+}

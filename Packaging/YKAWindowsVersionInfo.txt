@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 1),
-    prodvers=(1, 0, 0, 1),
+    filevers=(1, 1, 0, 0),
+    prodvers=(1, 1, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -16,12 +16,12 @@ VSVersionInfo(
         [
           StringStruct('CompanyName', 'yuzeis'),
           StringStruct('FileDescription', 'YSLZMKouWardrobeAutoAnalyzer'),
-          StringStruct('FileVersion', 'ver1.0-beta1'),
+          StringStruct('FileVersion', 'ver1.1'),
           StringStruct('InternalName', 'YSLZMKouWardrobeAutoAnalyzer'),
           StringStruct('LegalCopyright', 'Copyright (C) 2026 yuzeis'),
-          StringStruct('OriginalFilename', 'YSLZMKouWardrobeAutoAnalyzer-ver1.0-beta1-windows-x64.exe'),
+          StringStruct('OriginalFilename', 'YSLZMKouWardrobeAutoAnalyzer-ver1.1-windows-x64.exe'),
           StringStruct('ProductName', 'YSLZMKouWardrobeAutoAnalyzer'),
-          StringStruct('ProductVersion', 'ver1.0-beta1'),
+          StringStruct('ProductVersion', 'ver1.1'),
           StringStruct('Comments', 'Codename: Gnadenfülle')
         ]
       )

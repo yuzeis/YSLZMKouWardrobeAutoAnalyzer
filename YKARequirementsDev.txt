@@ -1,2 +1,3 @@
 -r YKARequirements.txt
+cryptography>=46,<47
 pytest>=8,<9

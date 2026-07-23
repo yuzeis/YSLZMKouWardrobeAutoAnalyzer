@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 5,
   "mini_program": {
     "name": "抠池记录",
     "embedded_app_version": "1.1.7",
@@ -23,8 +23,10 @@
     "slot_order": "fashion part order with tattoos after special accessories; reproduced all 114 complete suite-backed collages",
     "coordinate_model": "normalized four-column centers scaled to the target image width, preserving the mini-program intrinsic-width marker offset",
     "lottery_pool_id": "first three active lottery_cfg suit_id values matched uniquely to the release suite_id, plus explicit legacy exceptions",
-    "lottery_count_basis": "148 = previous 146 mapped rows + two current pool 82 matches (lx29 and pp29)",
-    "background_scene_id": "unique OCR-to-installed lock name, or explicit manual confirmation"
+    "lottery_count_basis": "148 = 142 unique suite matches + 6 current-version special exceptions, including lx29/pp29 in pool 82",
+    "background_scene_id": "unique OCR-to-installed lock name, or explicit manual confirmation",
+    "background_shot_src_id": "command-740 tmp_id values derived from each scene lock row's unlock_way target; client relevance_unlock aliases are included after resolving their unlock_way targets",
+    "background_ownership": "command 740 op_type=1 field6 tmp_id directly equals the shot_cfg.Scene lock_id; command 637 contains portrait IDs and is excluded from background ownership"
   },
   "pool_count": 329,
   "confidence_counts": {
@@ -53191,6 +53193,9 @@
       "scene_ids": [
         107
       ],
+      "shot_src_ids": [
+        25571
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53198,7 +53203,10 @@
           "云台青罗"
         ],
         "score": 1.0,
-        "margin": 0.7143
+        "margin": 0.7143,
+        "source_lock_ids": [
+          25571
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53211,6 +53219,9 @@
       "scene_ids": [
         123
       ],
+      "shot_src_ids": [
+        31177
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53218,7 +53229,10 @@
           "璃影莲炬"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          31177
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53231,6 +53245,9 @@
       "scene_ids": [
         108
       ],
+      "shot_src_ids": [
+        25331
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53238,7 +53255,10 @@
           "失落颂歌"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.08,
+        "source_lock_ids": [
+          25331
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53251,6 +53271,9 @@
       "scene_ids": [
         113
       ],
+      "shot_src_ids": [
+        29309
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53258,7 +53281,10 @@
           "疑是画中仙"
         ],
         "score": 1.0,
-        "margin": 0.7778
+        "margin": 0.7778,
+        "source_lock_ids": [
+          29309
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53271,6 +53297,9 @@
       "scene_ids": [
         94
       ],
+      "shot_src_ids": [
+        25332
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53278,7 +53307,10 @@
           "浪漫之誓"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          25332
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53291,6 +53323,9 @@
       "scene_ids": [
         114
       ],
+      "shot_src_ids": [
+        29207
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53298,7 +53333,10 @@
           "寂静森林"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          29207
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53311,11 +53349,17 @@
       "scene_ids": [
         122
       ],
+      "shot_src_ids": [
+        30875
+      ],
       "mapping_confidence": "manual_confirmed",
       "mapping_evidence": {
         "basis": "manual_confirmation",
         "ocr_texts": [
           "落樱的约..."
+        ],
+        "source_lock_ids": [
+          30875
         ]
       },
       "unavailable_in_installed_version": false
@@ -53329,6 +53373,9 @@
       "scene_ids": [
         115
       ],
+      "shot_src_ids": [
+        28182
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53336,7 +53383,10 @@
           "朱墙白雪"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          28182
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53349,6 +53399,9 @@
       "scene_ids": [
         132
       ],
+      "shot_src_ids": [
+        31549
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53356,7 +53409,10 @@
           "神舆银妆"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          31549
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53369,6 +53425,9 @@
       "scene_ids": [
         119
       ],
+      "shot_src_ids": [
+        31924
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53376,7 +53435,10 @@
           "雪英琼台"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          31924
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53389,6 +53451,9 @@
       "scene_ids": [
         138
       ],
+      "shot_src_ids": [
+        34083
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53396,7 +53461,10 @@
           "爱神圣域"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          34083
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53409,11 +53477,17 @@
       "scene_ids": [
         135
       ],
+      "shot_src_ids": [
+        33479
+      ],
       "mapping_confidence": "manual_confirmed",
       "mapping_evidence": {
         "basis": "manual_confirmation",
         "ocr_texts": [
           "灯月良宵-..."
+        ],
+        "source_lock_ids": [
+          33479
         ]
       },
       "unavailable_in_installed_version": false
@@ -53427,6 +53501,9 @@
       "scene_ids": [
         141
       ],
+      "shot_src_ids": [
+        35033
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53434,7 +53511,10 @@
           "烛镜瑰梦"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          35033
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53447,6 +53527,9 @@
       "scene_ids": [
         146
       ],
+      "shot_src_ids": [
+        36626
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53454,7 +53537,10 @@
           "囍玉成礼"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          36626
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53467,11 +53553,17 @@
       "scene_ids": [
         118
       ],
+      "shot_src_ids": [
+        30239
+      ],
       "mapping_confidence": "manual_confirmed",
       "mapping_evidence": {
         "basis": "manual_confirmation",
         "ocr_texts": [
           "心蔷童话-..."
+        ],
+        "source_lock_ids": [
+          30239
         ]
       },
       "unavailable_in_installed_version": false
@@ -53485,6 +53577,9 @@
       "scene_ids": [
         150
       ],
+      "shot_src_ids": [
+        37040
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53492,7 +53587,10 @@
           "笼中星河"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          37040
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53505,6 +53603,9 @@
       "scene_ids": [
         152
       ],
+      "shot_src_ids": [
+        37262
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53512,7 +53613,10 @@
           "游鱼万华"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          37262
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53525,6 +53629,9 @@
       "scene_ids": [
         157
       ],
+      "shot_src_ids": [
+        38673
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53532,7 +53639,10 @@
           "秘情异邦"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          38673
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53545,6 +53655,9 @@
       "scene_ids": [
         116
       ],
+      "shot_src_ids": [
+        28183
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53552,7 +53665,10 @@
           "远冬之国"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          28183
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53565,6 +53681,9 @@
       "scene_ids": [
         163
       ],
+      "shot_src_ids": [
+        39199
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53572,7 +53691,10 @@
           "灯伞结彩"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          39199
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53585,6 +53707,9 @@
       "scene_ids": [
         156
       ],
+      "shot_src_ids": [
+        38451
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53592,7 +53717,10 @@
           "紫藤纤语"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          38451
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53605,6 +53733,9 @@
       "scene_ids": [
         149
       ],
+      "shot_src_ids": [
+        37030
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53612,7 +53743,10 @@
           "绘夜留影"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          37030
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53625,6 +53759,9 @@
       "scene_ids": [
         158
       ],
+      "shot_src_ids": [
+        38923
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53632,7 +53769,10 @@
           "澄境启程"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          38923
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53645,6 +53785,9 @@
       "scene_ids": [
         147
       ],
+      "shot_src_ids": [
+        36667
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53652,7 +53795,10 @@
           "空中伊甸"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          36667
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53665,6 +53811,9 @@
       "scene_ids": [
         155
       ],
+      "shot_src_ids": [
+        37563
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53672,7 +53821,10 @@
           "梦幻奇妙屋"
         ],
         "score": 1.0,
-        "margin": 0.7778
+        "margin": 0.7778,
+        "source_lock_ids": [
+          37563
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53685,6 +53837,9 @@
       "scene_ids": [
         168
       ],
+      "shot_src_ids": [
+        41728
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53692,7 +53847,10 @@
           "瑰心之弈"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          41728
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53705,6 +53863,9 @@
       "scene_ids": [
         164
       ],
+      "shot_src_ids": [
+        39983
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53712,7 +53873,10 @@
           "棠梨如梦"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          39983
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53725,6 +53889,9 @@
       "scene_ids": [
         165
       ],
+      "shot_src_ids": [
+        40713
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53732,7 +53899,10 @@
           "弦月使臣"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          40713
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53745,6 +53915,9 @@
       "scene_ids": [
         172
       ],
+      "shot_src_ids": [
+        42542
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53752,7 +53925,10 @@
           "天水之榭"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.5,
+        "source_lock_ids": [
+          42542
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53765,6 +53941,9 @@
       "scene_ids": [
         175
       ],
+      "shot_src_ids": [
+        43719
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53772,7 +53951,10 @@
           "繁华夜幕"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          43719
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53785,6 +53967,9 @@
       "scene_ids": [
         166
       ],
+      "shot_src_ids": [
+        40955
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53792,7 +53977,10 @@
           "荧魑游坊"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          40955
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53805,6 +53993,9 @@
       "scene_ids": [
         131
       ],
+      "shot_src_ids": [
+        31251
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53812,7 +54003,10 @@
           "霓光音浪"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          31251
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53825,6 +54019,9 @@
       "scene_ids": [
         195
       ],
+      "shot_src_ids": [
+        49351
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53832,7 +54029,10 @@
           "时间之隙"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          49351
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53845,6 +54045,9 @@
       "scene_ids": [
         192
       ],
+      "shot_src_ids": [
+        48460
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53852,7 +54055,10 @@
           "赤梦幽冥"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          48460
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53865,6 +54071,9 @@
       "scene_ids": [
         117
       ],
+      "shot_src_ids": [
+        29208
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53872,7 +54081,10 @@
           "繁华往事"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          29208
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53885,6 +54097,9 @@
       "scene_ids": [
         193
       ],
+      "shot_src_ids": [
+        48706
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53892,7 +54107,10 @@
           "幽蝶秘境"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          48706
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53905,6 +54123,9 @@
       "scene_ids": [
         194
       ],
+      "shot_src_ids": [
+        49009
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53912,7 +54133,10 @@
           "醉来画山"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          49009
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53925,6 +54149,9 @@
       "scene_ids": [
         112
       ],
+      "shot_src_ids": [
+        30238
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53932,7 +54159,10 @@
           "星塔秀场"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          30238
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53945,6 +54175,9 @@
       "scene_ids": [
         202
       ],
+      "shot_src_ids": [
+        51065
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53952,7 +54185,10 @@
           "幽檀雅居"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          51065
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53965,6 +54201,9 @@
       "scene_ids": [
         204
       ],
+      "shot_src_ids": [
+        51828
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53972,7 +54211,10 @@
           "次元裂隙"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          51828
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -53985,6 +54227,9 @@
       "scene_ids": [
         207
       ],
+      "shot_src_ids": [
+        52735
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -53992,7 +54237,10 @@
           "月穹银湖"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          52735
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54005,6 +54253,9 @@
       "scene_ids": [
         57
       ],
+      "shot_src_ids": [
+        7361
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54012,7 +54263,10 @@
           "幽径芳菲"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          7361
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54025,6 +54279,9 @@
       "scene_ids": [
         209
       ],
+      "shot_src_ids": [
+        53666
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54032,7 +54289,10 @@
           "赤色盛筵"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          53666
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54045,6 +54305,9 @@
       "scene_ids": [
         176
       ],
+      "shot_src_ids": [
+        44738
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54052,7 +54315,10 @@
           "魔盒幽馆"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          44738
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54065,6 +54331,9 @@
       "scene_ids": [
         210
       ],
+      "shot_src_ids": [
+        54801
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54072,7 +54341,10 @@
           "银砾千山"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          54801
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54085,6 +54357,9 @@
       "scene_ids": [
         215
       ],
+      "shot_src_ids": [
+        56953
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54092,7 +54367,10 @@
           "拼接涂鸦"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          56953
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54105,6 +54383,9 @@
       "scene_ids": [
         212
       ],
+      "shot_src_ids": [
+        55404
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54112,7 +54393,10 @@
           "清影篱落"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          55404
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54125,6 +54409,9 @@
       "scene_ids": [
         205
       ],
+      "shot_src_ids": [
+        52198
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54132,7 +54419,10 @@
           "雪韵仙庭"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          52198
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54145,6 +54435,9 @@
       "scene_ids": [
         203
       ],
+      "shot_src_ids": [
+        51316
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54152,7 +54445,10 @@
           "夜渊幻域"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          51316
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54165,6 +54461,9 @@
       "scene_ids": [
         211
       ],
+      "shot_src_ids": [
+        55403
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54172,7 +54471,10 @@
           "密林夜栖"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          55403
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54185,6 +54487,9 @@
       "scene_ids": [
         221
       ],
+      "shot_src_ids": [
+        58133
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54192,7 +54497,10 @@
           "桃花源"
         ],
         "score": 1.0,
-        "margin": 0.6667
+        "margin": 0.6667,
+        "source_lock_ids": [
+          58133
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54205,6 +54513,9 @@
       "scene_ids": [
         214
       ],
+      "shot_src_ids": [
+        56864
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54212,7 +54523,10 @@
           "暗室回声"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          56864
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54225,6 +54539,9 @@
       "scene_ids": [
         223
       ],
+      "shot_src_ids": [
+        58362
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54232,7 +54549,10 @@
           "晴满新城"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          58362
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54245,6 +54565,9 @@
       "scene_ids": [
         228
       ],
+      "shot_src_ids": [
+        61066
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54252,7 +54575,10 @@
           "霓光夜影"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          61066
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54265,6 +54591,9 @@
       "scene_ids": [
         227
       ],
+      "shot_src_ids": [
+        60334
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54272,7 +54601,10 @@
           "光斓瑰阶"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          60334
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54285,6 +54617,9 @@
       "scene_ids": [
         208
       ],
+      "shot_src_ids": [
+        52867
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54292,7 +54627,10 @@
           "落霜祈廷"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          52867
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54305,6 +54643,9 @@
       "scene_ids": [
         199
       ],
+      "shot_src_ids": [
+        50616
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54312,7 +54653,10 @@
           "仙狐云踪"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          50616
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54325,6 +54669,9 @@
       "scene_ids": [
         234
       ],
+      "shot_src_ids": [
+        64368
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54332,7 +54679,10 @@
           "绿影瑰梦"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          64368
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54345,6 +54695,9 @@
       "scene_ids": [
         233
       ],
+      "shot_src_ids": [
+        63436
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54352,7 +54705,10 @@
           "迷雾幽廊"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          63436
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54365,6 +54721,9 @@
       "scene_ids": [
         235
       ],
+      "shot_src_ids": [
+        64569
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54372,7 +54731,10 @@
           "星海漫步"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          64569
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54385,6 +54747,9 @@
       "scene_ids": [
         238
       ],
+      "shot_src_ids": [
+        67726
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54392,7 +54757,10 @@
           "仿真归零"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          67726
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54405,6 +54773,9 @@
       "scene_ids": [
         220
       ],
+      "shot_src_ids": [
+        57883
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54412,7 +54783,10 @@
           "云阶琼阁"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          57883
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54425,6 +54799,9 @@
       "scene_ids": [
         246
       ],
+      "shot_src_ids": [
+        69178
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54432,7 +54809,10 @@
           "金沙蜃境"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          69178
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54445,6 +54825,9 @@
       "scene_ids": [
         242
       ],
+      "shot_src_ids": [
+        68994
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54452,7 +54835,10 @@
           "花烬遗庭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          68994
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54465,6 +54851,9 @@
       "scene_ids": [
         245
       ],
+      "shot_src_ids": [
+        69177
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54472,7 +54861,10 @@
           "荆棘夜祷"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          69177
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54485,6 +54877,9 @@
       "scene_ids": [
         250
       ],
+      "shot_src_ids": [
+        70348
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54492,7 +54887,10 @@
           "暮雨航迹"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          70348
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54505,6 +54903,9 @@
       "scene_ids": [
         247
       ],
+      "shot_src_ids": [
+        69507
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54512,7 +54913,10 @@
           "荒墟边境"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          69507
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54525,6 +54929,9 @@
       "scene_ids": [
         241
       ],
+      "shot_src_ids": [
+        68524
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54532,7 +54939,10 @@
           "永劫链狱"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          68524
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54545,6 +54955,9 @@
       "scene_ids": [
         251
       ],
+      "shot_src_ids": [
+        73112
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54552,7 +54965,10 @@
           "星辉之庭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          73112
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54565,6 +54981,9 @@
       "scene_ids": [
         249
       ],
+      "shot_src_ids": [
+        70347
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54572,7 +54991,10 @@
           "心街漫章"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          70347
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54585,6 +55007,9 @@
       "scene_ids": [
         254
       ],
+      "shot_src_ids": [
+        73392
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54592,7 +55017,10 @@
           "轨间青谣"
         ],
         "score": 1.0,
-        "margin": 0.7143
+        "margin": 0.7143,
+        "source_lock_ids": [
+          73392
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54605,6 +55033,9 @@
       "scene_ids": [
         252
       ],
+      "shot_src_ids": [
+        73236
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54612,7 +55043,10 @@
           "暮雪深巷"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          73236
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54625,6 +55059,9 @@
       "scene_ids": [
         260
       ],
+      "shot_src_ids": [
+        75905
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54632,7 +55069,10 @@
           "晴日学堂"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          75905
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54645,6 +55085,9 @@
       "scene_ids": [
         261
       ],
+      "shot_src_ids": [
+        77039
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54652,7 +55095,10 @@
           "雪屿秘境"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          77039
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54665,6 +55111,9 @@
       "scene_ids": [
         263
       ],
+      "shot_src_ids": [
+        80311
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54672,7 +55121,10 @@
           "赤络流萤"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          80311
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54685,12 +55137,18 @@
       "scene_ids": [
         266
       ],
+      "shot_src_ids": [
+        80312
+      ],
       "mapping_confidence": "manual_confirmed",
       "mapping_evidence": {
         "basis": "manual_confirmation",
         "ocr_texts": [
           "叠影画",
           "人"
+        ],
+        "source_lock_ids": [
+          80312
         ]
       },
       "unavailable_in_installed_version": false
@@ -54704,6 +55162,9 @@
       "scene_ids": [
         269
       ],
+      "shot_src_ids": [
+        80313
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54711,7 +55172,10 @@
           "蝶梦荧墟"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          80313
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54724,6 +55188,9 @@
       "scene_ids": [
         270
       ],
+      "shot_src_ids": [
+        80314
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54731,7 +55198,10 @@
           "站台晨昏"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          80314
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54744,6 +55214,9 @@
       "scene_ids": [
         273
       ],
+      "shot_src_ids": [
+        81964
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54751,7 +55224,10 @@
           "祈光秘境"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          81964
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54764,6 +55240,9 @@
       "scene_ids": [
         272
       ],
+      "shot_src_ids": [
+        81963
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54771,7 +55250,10 @@
           "鸦羽之窗"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          81963
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54784,6 +55266,9 @@
       "scene_ids": [
         275
       ],
+      "shot_src_ids": [
+        83195
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54791,7 +55276,10 @@
           "风起丹阙"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          83195
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54804,6 +55292,9 @@
       "scene_ids": [
         274
       ],
+      "shot_src_ids": [
+        83194
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54811,7 +55302,10 @@
           "封锁诊区"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          83194
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54824,6 +55318,9 @@
       "scene_ids": [
         277
       ],
+      "shot_src_ids": [
+        86463
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54831,7 +55328,10 @@
           "圣蔷花庭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          86463
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54844,6 +55344,9 @@
       "scene_ids": [
         276
       ],
+      "shot_src_ids": [
+        86462
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54851,7 +55354,10 @@
           "花间秘境"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          86462
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54864,6 +55370,9 @@
       "scene_ids": [
         278
       ],
+      "shot_src_ids": [
+        86464
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54871,7 +55380,10 @@
           "听泉茶舍"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          86464
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54884,6 +55396,9 @@
       "scene_ids": [
         279
       ],
+      "shot_src_ids": [
+        86465
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54891,7 +55406,10 @@
           "流金之森"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          86465
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54904,6 +55422,9 @@
       "scene_ids": [
         282
       ],
+      "shot_src_ids": [
+        86468
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54911,7 +55432,10 @@
           "星梦花庭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          86468
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54924,6 +55448,9 @@
       "scene_ids": [
         281
       ],
+      "shot_src_ids": [
+        86467
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54931,7 +55458,10 @@
           "绮宴琼楼"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          86467
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54944,6 +55474,9 @@
       "scene_ids": [
         284
       ],
+      "shot_src_ids": [
+        89494
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54951,7 +55484,10 @@
           "沉月之庭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          89494
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54964,6 +55500,9 @@
       "scene_ids": [
         283
       ],
+      "shot_src_ids": [
+        89493
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54971,7 +55510,10 @@
           "星海归途"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          89493
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -54984,6 +55526,9 @@
       "scene_ids": [
         287
       ],
+      "shot_src_ids": [
+        94121
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -54991,7 +55536,10 @@
           "神祈之径"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          94121
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55004,6 +55552,9 @@
       "scene_ids": [
         286
       ],
+      "shot_src_ids": [
+        94120
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55011,7 +55562,10 @@
           "雅韵清商"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          94120
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55024,6 +55578,9 @@
       "scene_ids": [
         290
       ],
+      "shot_src_ids": [
+        95957
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55031,7 +55588,10 @@
           "朱明壁影"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          95957
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55044,6 +55604,9 @@
       "scene_ids": [
         288
       ],
+      "shot_src_ids": [
+        95051
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55051,7 +55614,10 @@
           "霜月华庭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          95051
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55064,6 +55630,9 @@
       "scene_ids": [
         291
       ],
+      "shot_src_ids": [
+        96738
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55071,7 +55640,10 @@
           "烛烬玫庭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          96738
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55084,6 +55656,9 @@
       "scene_ids": [
         293
       ],
+      "shot_src_ids": [
+        98020
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55091,7 +55666,10 @@
           "雪落长街"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          98020
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55104,6 +55682,9 @@
       "scene_ids": [
         294
       ],
+      "shot_src_ids": [
+        99114
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55111,7 +55692,10 @@
           "诗与咏叹调"
         ],
         "score": 1.0,
-        "margin": 0.7778
+        "margin": 0.7778,
+        "source_lock_ids": [
+          99114
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55124,6 +55708,9 @@
       "scene_ids": [
         295
       ],
+      "shot_src_ids": [
+        99115
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55131,7 +55718,10 @@
           "枕雨打蕉"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          99115
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55144,6 +55734,9 @@
       "scene_ids": [
         298
       ],
+      "shot_src_ids": [
+        99118
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55151,7 +55744,10 @@
           "雪覆山河"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          99118
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55164,6 +55760,9 @@
       "scene_ids": [
         78
       ],
+      "shot_src_ids": [
+        24979
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55171,7 +55770,10 @@
           "奇诡秘境"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          24979
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55184,6 +55786,9 @@
       "scene_ids": [
         120
       ],
+      "shot_src_ids": [
+        29280
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55191,7 +55796,10 @@
           "殷色瑰幻夜"
         ],
         "score": 1.0,
-        "margin": 0.7778
+        "margin": 0.7778,
+        "source_lock_ids": [
+          29280
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55204,6 +55812,9 @@
       "scene_ids": [
         297
       ],
+      "shot_src_ids": [
+        99117
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55211,7 +55822,10 @@
           "遗忘国度"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          99117
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55224,6 +55838,9 @@
       "scene_ids": [
         300
       ],
+      "shot_src_ids": [
+        99120
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55231,7 +55848,10 @@
           "满堂春晖"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          99120
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55244,6 +55864,9 @@
       "scene_ids": [
         301
       ],
+      "shot_src_ids": [
+        99121
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55251,7 +55874,10 @@
           "森庭旧梦"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          99121
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55264,6 +55890,9 @@
       "scene_ids": [
         148
       ],
+      "shot_src_ids": [
+        36731
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55271,7 +55900,10 @@
           "璃光魅影"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          36731
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55284,6 +55916,9 @@
       "scene_ids": [
         67
       ],
+      "shot_src_ids": [
+        18061
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55291,7 +55926,10 @@
           "斜晖小径"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          18061
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55304,6 +55942,9 @@
       "scene_ids": [
         50
       ],
+      "shot_src_ids": [
+        18064
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55311,7 +55952,10 @@
           "降临前夜"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          18064
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55324,6 +55968,9 @@
       "scene_ids": [
         79
       ],
+      "shot_src_ids": [
+        25162
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55331,7 +55978,10 @@
           "雪国童话"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          25162
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55344,6 +55994,9 @@
       "scene_ids": [
         304
       ],
+      "shot_src_ids": [
+        99124
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55351,7 +56004,10 @@
           "诸神遗迹"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          99124
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55364,6 +56020,9 @@
       "scene_ids": [
         305
       ],
+      "shot_src_ids": [
+        99125
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55371,7 +56030,10 @@
           "永寂神坛"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          99125
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55384,6 +56046,9 @@
       "scene_ids": [
         306
       ],
+      "shot_src_ids": [
+        106674
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55391,7 +56056,10 @@
           "春漫桃序"
         ],
         "score": 1.0,
-        "margin": 0.7143
+        "margin": 0.7143,
+        "source_lock_ids": [
+          106674
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55404,6 +56072,9 @@
       "scene_ids": [
         307
       ],
+      "shot_src_ids": [
+        106675
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55411,7 +56082,10 @@
           "花雾萦蝶"
         ],
         "score": 1.0,
-        "margin": 0.7143
+        "margin": 0.7143,
+        "source_lock_ids": [
+          106675
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55424,6 +56098,9 @@
       "scene_ids": [
         308
       ],
+      "shot_src_ids": [
+        106677
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55431,7 +56108,10 @@
           "雪栖山榭"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          106677
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55444,6 +56124,9 @@
       "scene_ids": [
         310
       ],
+      "shot_src_ids": [
+        106679
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55451,7 +56134,10 @@
           "花寄山海"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          106679
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55464,6 +56150,9 @@
       "scene_ids": [
         313
       ],
+      "shot_src_ids": [
+        111088
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55471,7 +56160,10 @@
           "悬阶魔阁"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          111088
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55484,6 +56176,9 @@
       "scene_ids": [
         314
       ],
+      "shot_src_ids": [
+        113461
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55491,7 +56186,10 @@
           "星萤花谷"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          113461
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55504,6 +56202,9 @@
       "scene_ids": [
         315
       ],
+      "shot_src_ids": [
+        114300
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55511,7 +56212,10 @@
           "梦回羊村"
         ],
         "score": 1.0,
-        "margin": 0.75
+        "margin": 0.75,
+        "source_lock_ids": [
+          114300
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55524,6 +56228,9 @@
       "scene_ids": [
         317
       ],
+      "shot_src_ids": [
+        114602
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55531,7 +56238,10 @@
           "风信花居"
         ],
         "score": 1.0,
-        "margin": 0.7143
+        "margin": 0.7143,
+        "source_lock_ids": [
+          114602
+        ]
       },
       "unavailable_in_installed_version": false
     },
@@ -55544,12 +56254,18 @@
       "scene_ids": [
         320
       ],
+      "shot_src_ids": [
+        117003
+      ],
       "mapping_confidence": "manual_confirmed",
       "mapping_evidence": {
         "basis": "manual_confirmation",
         "ocr_texts": [
           "川",
           "沐风雅堂"
+        ],
+        "source_lock_ids": [
+          117003
         ]
       },
       "unavailable_in_installed_version": false
@@ -55563,6 +56279,9 @@
       "scene_ids": [
         321
       ],
+      "shot_src_ids": [
+        117004
+      ],
       "mapping_confidence": "verified",
       "mapping_evidence": {
         "basis": "unique_ocr_to_installed_lock_name",
@@ -55570,29 +56289,64 @@
           "旧偶残梦"
         ],
         "score": 1.0,
-        "margin": 0.5
+        "margin": 0.5,
+        "source_lock_ids": [
+          117004
+        ]
       },
       "unavailable_in_installed_version": false
     },
     {
       "key": "bg121",
-      "name": null,
+      "name": "温情咖啡",
       "att_type": "attbg",
       "pool_type": "background",
       "img_url": "https://kcjl-1413803122.cos.ap-guangzhou.myqcloud.com/static/bg/121.webp",
-      "scene_ids": [],
-      "mapping_confidence": "version_absent",
-      "unavailable_in_installed_version": true
+      "scene_ids": [
+        30
+      ],
+      "shot_src_ids": [
+        18062
+      ],
+      "mapping_confidence": "verified",
+      "mapping_evidence": {
+        "basis": "unique_ocr_to_installed_lock_name",
+        "ocr_texts": [
+          "温情咖啡"
+        ],
+        "score": 1.0,
+        "margin": 0.75,
+        "source_lock_ids": [
+          18062
+        ]
+      },
+      "unavailable_in_installed_version": false
     },
     {
       "key": "bg122",
-      "name": null,
+      "name": "晴海盛夏",
       "att_type": "attbg",
       "pool_type": "background",
       "img_url": "https://kcjl-1413803122.cos.ap-guangzhou.myqcloud.com/static/bg/122.webp",
-      "scene_ids": [],
-      "mapping_confidence": "version_absent",
-      "unavailable_in_installed_version": true
+      "scene_ids": [
+        71
+      ],
+      "shot_src_ids": [
+        22303
+      ],
+      "mapping_confidence": "verified",
+      "mapping_evidence": {
+        "basis": "unique_ocr_to_installed_lock_name",
+        "ocr_texts": [
+          "晴海盛夏"
+        ],
+        "score": 1.0,
+        "margin": 0.75,
+        "source_lock_ids": [
+          22303
+        ]
+      },
+      "unavailable_in_installed_version": false
     },
     {
       "key": "bg123",
@@ -55601,6 +56355,7 @@
       "pool_type": "background",
       "img_url": "https://kcjl-1413803122.cos.ap-guangzhou.myqcloud.com/static/bg/123.webp",
       "scene_ids": [],
+      "shot_src_ids": [],
       "mapping_confidence": "version_absent",
       "unavailable_in_installed_version": true
     },
@@ -55611,6 +56366,7 @@
       "pool_type": "background",
       "img_url": "https://kcjl-1413803122.cos.ap-guangzhou.myqcloud.com/static/bg/124.webp",
       "scene_ids": [],
+      "shot_src_ids": [],
       "mapping_confidence": "version_absent",
       "unavailable_in_installed_version": true
     },
@@ -55621,6 +56377,7 @@
       "pool_type": "background",
       "img_url": "https://kcjl-1413803122.cos.ap-guangzhou.myqcloud.com/static/bg/125.webp",
       "scene_ids": [],
+      "shot_src_ids": [],
       "mapping_confidence": "version_absent",
       "unavailable_in_installed_version": true
     },
@@ -55631,6 +56388,7 @@
       "pool_type": "background",
       "img_url": "https://kcjl-1413803122.cos.ap-guangzhou.myqcloud.com/static/bg/126.webp",
       "scene_ids": [],
+      "shot_src_ids": [],
       "mapping_confidence": "version_absent",
       "unavailable_in_installed_version": true
     }
@@ -55640,24 +56398,24 @@
     "background": 126,
     "total": 329,
     "lottery_mapped": 148,
-    "background_mapped": 120,
-    "background_version_absent": 6
+    "background_mapped": 122,
+    "background_version_absent": 4
   },
   "sources": {
-    "pool_catalog_v2": {
-      "file": "release_pool_catalog_v2.json",
-      "sha256": "8a5090fe17515e308540358d2d12320a5c0fac033c303b1e4de546a415098c7f",
-      "pool_count": 199
+    "base_pool_catalog": {
+      "file": "YKAPoolCatalog.json",
+      "sha256": "fe98a024776f8724257b7473b80c63b047309462c00dddb3290e8ff287124864",
+      "pool_count": 203
     },
     "app_service": {
-      "file": "wxapkg-r21/app-service.js",
-      "sha256": "2c3cdaf2978ab52385c2cc1a3cbf9dcdcdcbc4c83d236f52942fb59d4a0af859a",
-      "pool_count": 329,
+      "file": "app-service.js",
+      "sha256": "3b45a656493d7823509cb1e08eee5a5d449442f4e56aef799168220e57a594db",
+      "pool_count": 325,
       "background_count": 126
     },
     "background_ocr": {
       "file": "background_ocr_v3.json",
-      "sha256": "4657bfd637c4c253f3acee1df969fa445b33e20b673cd819f448a820a8c1a6b4",
+      "sha256": "126e643e04695d29e365c0f4a07a8c197f8e4e9f4813e66f2c5ade20cdf840de",
       "record_count": 126
     },
     "lottery_cfg": {
@@ -55667,14 +56425,14 @@
     },
     "shot_cfg": {
       "file": "shot_cfg.lua",
-      "sha256": "d02f011361421e2b4384da69564277edad461da0ec7243936f6afde004f82425",
-      "scene_id_count": 210,
-      "free_scene_cfg_count": 219
+      "sha256": "20cf2710c1219054ae24555b53881cb64ef4b4037aebd94ff88b000f7b20a0c1",
+      "scene_id_count": 216,
+      "free_scene_cfg_count": 224
     },
     "shot_src_unlock_config": {
       "file": "shot_src_unlock_config.bcfg",
-      "sha256": "7780429bf48413ccd72de7a0d74d1cd5f0a68ec93173eb75f0a142751509e6a1",
-      "named_lock_count": 4454
+      "sha256": "7de3e39570cebbefcbabe9decb9cd7ab92458f770825acc0b9aa76ef61ae91be",
+      "named_lock_count": 4535
     }
   }
 }

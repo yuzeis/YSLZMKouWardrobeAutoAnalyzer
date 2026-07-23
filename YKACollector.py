@@ -22,7 +22,7 @@ from YKACore import (
     CAPTURE_FILESIZE_KIB,
     CAPTURE_MAX_RETRIES,
     CAPTURE_RETAIN_UNTIL_EXPORT,
-    GAME_SERVICE_PORT,
+    GAME_CAPTURE_FILTER,
     GAME_NAME_HINTS,
     KNOWN_LAUNCHERS,
     OPEN_FILE_POLL_SECONDS,
@@ -137,7 +137,7 @@ def socket_owner_probe() -> dict[str, Any]:
 
 
 def preflight() -> dict[str, Any]:
-    capture_filter = f"tcp port {GAME_SERVICE_PORT} or udp port {GAME_SERVICE_PORT}"
+    capture_filter = GAME_CAPTURE_FILTER
     capture = inspect_capture_environment(capture_filter)
     scapy_status = capture.get("scapy", {})
     analysis_ready = bool(
@@ -366,7 +366,7 @@ class Collector:
             interface_ids,
             interface_names,
             self.event_log,
-            f"tcp port {GAME_SERVICE_PORT} or udp port {GAME_SERVICE_PORT}",
+            GAME_CAPTURE_FILTER,
         )
 
     def _write_status(self, state: str, **extra: Any) -> None:

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+import re
 from typing import Sequence
 
-from YKACore import GAME_SERVICE_PORT
+from YKACompatibility import CompatibilityProfile, load_compatibility_profile
 
 
 MAX_TCP_SPAN = 64 * 1024 * 1024
@@ -22,6 +23,14 @@ class TcpSegment:
     stream_id: int
     sequence: int
     payload: bytes
+    capture_order: int = 0
+
+
+@dataclass(frozen=True)
+class TcpSegmentSpan:
+    start: int
+    end: int
+    capture_order: int
 
 
 @dataclass(frozen=True)
@@ -32,6 +41,55 @@ class TcpReassembly:
     segment_count: int
     gap_bytes: int
     conflict_bytes: int
+    server_port: int | None = None
+    locator: str | None = None
+    segment_spans: tuple[TcpSegmentSpan, ...] = ()
+
+
+@dataclass(frozen=True)
+class TcpFlowMetadata:
+    stream_id: int
+    client_ip: str
+    client_port: int
+    server_ip: str
+    server_port: int
+    client_syn_seen: bool
+    server_syn_seen: bool
+
+    @property
+    def handshake_complete(self) -> bool:
+        return self.client_syn_seen and self.server_syn_seen
+
+
+@dataclass
+class _FlowState:
+    stream_id: int
+    connection: tuple[int, str, int, str, int]
+    client_ip: str
+    client_port: int
+    server_ip: str
+    server_port: int
+    client_syn_sequence: int | None = None
+    client_syn_seen: bool = False
+    server_syn_seen: bool = False
+    fin_directions: int = 0
+
+    def metadata(self) -> TcpFlowMetadata:
+        return TcpFlowMetadata(
+            self.stream_id,
+            self.client_ip,
+            self.client_port,
+            self.server_ip,
+            self.server_port,
+            self.client_syn_seen,
+            self.server_syn_seen,
+        )
+
+
+@dataclass(frozen=True)
+class MPPCBlockBoundary:
+    compressed_end: int
+    decompressed_end: int
 
 
 @dataclass(frozen=True)
@@ -40,6 +98,7 @@ class MPPCResult:
     block_count: int
     bits_consumed: int
     error: str | None
+    block_boundaries: tuple[MPPCBlockBoundary, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -79,6 +138,7 @@ class DecodedServerStream:
     frames: tuple[CompactFrame, ...]
     partial_frame: PartialCompactFrame | None
     decode_error: str | None
+    mppc_block_boundaries: tuple[MPPCBlockBoundary, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -98,6 +158,10 @@ class GameMessage:
     source: str
     stream_id: int | None = None
     capture_id: str | None = None
+    resolution_mode: str = "profile"
+    observed_opcode: int | None = None
+    observed_wrapper_opcode: int | None = None
+    delivery_order: int | None = None
 
 
 @dataclass(frozen=True)
@@ -149,7 +213,13 @@ class _BitReader:
 
 def _read_capture_segments(
     pcaps: Sequence[Path],
-) -> tuple[list[TcpSegment], list[TcpSegment], Counter[str]]:
+    profile: CompatibilityProfile | None = None,
+) -> tuple[
+    list[TcpSegment],
+    list[TcpSegment],
+    Counter[str],
+    dict[int, TcpFlowMetadata],
+]:
     try:
         from scapy.layers.inet import IP, TCP, UDP  # type: ignore[import-untyped]
         from scapy.layers.inet6 import IPv6  # type: ignore[import-untyped]
@@ -157,14 +227,15 @@ def _read_capture_segments(
     except ImportError as error:
         raise ProtocolDecodeError("Scapy is required for offline capture analysis") from error
 
+    profile = profile or load_compatibility_profile()
     server_segments: list[TcpSegment] = []
     client_segments: list[TcpSegment] = []
     protocol_counts: Counter[str] = Counter()
-    active_streams: dict[tuple[int, str, int, str, int], int] = {}
-    initial_syn_sequences: dict[tuple[int, str, int, str, int], int] = {}
-    fin_directions: dict[tuple[int, str, int, str, int], int] = {}
+    active_streams: dict[tuple[int, str, int, str, int], _FlowState] = {}
+    flows: dict[int, _FlowState] = {}
     sequence_anchors: dict[tuple[int, str], int] = {}
     next_stream_id = 0
+    capture_order = 0
 
     for pcap in pcaps:
         try:
@@ -173,6 +244,7 @@ def _read_capture_segments(
             raise ProtocolDecodeError(f"Scapy could not open {pcap.name}: {error}") from error
         try:
             for packet in reader:
+                capture_order += 1
                 if TCP in packet:
                     protocol_counts["TCP"] += 1
                 elif UDP in packet:
@@ -185,8 +257,6 @@ def _read_capture_segments(
                 tcp = packet[TCP]
                 source_port = int(tcp.sport)
                 destination_port = int(tcp.dport)
-                if source_port != GAME_SERVICE_PORT and destination_port != GAME_SERVICE_PORT:
-                    continue
                 if IP in packet:
                     network = packet[IP]
                     ip_version = 4
@@ -196,57 +266,109 @@ def _read_capture_segments(
                 else:
                     continue
 
-                if source_port == GAME_SERVICE_PORT:
-                    direction = "server"
-                    server_ip = str(network.src)
-                    client_ip = str(network.dst)
-                    client_port = destination_port
-                else:
-                    direction = "client"
-                    server_ip = str(network.dst)
-                    client_ip = str(network.src)
-                    client_port = source_port
-                connection = (
+                source_ip = str(network.src)
+                destination_ip = str(network.dst)
+                forward = (
                     ip_version,
-                    server_ip,
-                    GAME_SERVICE_PORT,
-                    client_ip,
-                    client_port,
+                    source_ip,
+                    source_port,
+                    destination_ip,
+                    destination_port,
+                )
+                reverse = (
+                    ip_version,
+                    destination_ip,
+                    destination_port,
+                    source_ip,
+                    source_port,
                 )
                 flags = int(tcp.flags)
                 starts_connection = bool(flags & 0x02) and not bool(flags & 0x10)
-                stream_id = active_streams.get(connection)
                 raw_sequence = int(tcp.seq) & 0xFFFFFFFF
+                flow = active_streams.get(forward)
+                direction = "client"
+                if flow is None:
+                    flow = active_streams.get(reverse)
+                    direction = "server"
+
                 if starts_connection:
-                    # A SYN retransmission keeps the existing generation.  A
-                    # different SYN sequence or a half-closed predecessor
-                    # denotes a new connection.
-                    previous_syn = initial_syn_sequences.get(connection)
+                    flow = active_streams.get(forward)
                     if (
-                        stream_id is None
-                        or (
-                            previous_syn is not None
-                            and previous_syn != raw_sequence
-                        )
-                        or fin_directions.get(connection, 0)
+                        flow is None
+                        or flow.client_syn_sequence != raw_sequence
+                        or flow.fin_directions
                     ):
-                        stream_id = next_stream_id
+                        flow = _FlowState(
+                            stream_id=next_stream_id,
+                            connection=forward,
+                            client_ip=source_ip,
+                            client_port=source_port,
+                            server_ip=destination_ip,
+                            server_port=destination_port,
+                        )
                         next_stream_id += 1
-                        active_streams[connection] = stream_id
-                        initial_syn_sequences[connection] = raw_sequence
-                        fin_directions.pop(connection, None)
-                elif stream_id is None:
-                    stream_id = next_stream_id
+                        active_streams[forward] = flow
+                        flows[flow.stream_id] = flow
+                    direction = "client"
+                    flow.client_syn_sequence = raw_sequence
+                    flow.client_syn_seen = True
+                elif flow is None:
+                    if profile.is_known_service_port(destination_port):
+                        direction = "client"
+                        connection = forward
+                        client_ip = source_ip
+                        client_port = source_port
+                        server_ip = destination_ip
+                        server_port = destination_port
+                    elif profile.is_known_service_port(source_port):
+                        direction = "server"
+                        connection = reverse
+                        client_ip = destination_ip
+                        client_port = destination_port
+                        server_ip = source_ip
+                        server_port = source_port
+                    else:
+                        # An unknown-port flow without its opening SYN cannot be
+                        # oriented safely and is deliberately left unclassified.
+                        continue
+                    flow = _FlowState(
+                        stream_id=next_stream_id,
+                        connection=connection,
+                        client_ip=client_ip,
+                        client_port=client_port,
+                        server_ip=server_ip,
+                        server_port=server_port,
+                    )
                     next_stream_id += 1
-                    active_streams[connection] = stream_id
-                    fin_directions.pop(connection, None)
+                    active_streams[connection] = flow
+                    flows[flow.stream_id] = flow
+
+                if flow is None:
+                    continue
+                if flags & 0x02:
+                    if direction == "client":
+                        flow.client_syn_seen = True
+                    else:
+                        flow.server_syn_seen = True
+                    # Retain SYN+1 as a zero-length anchor so a capture that
+                    # starts after the handshake still reports the missing
+                    # prefix instead of silently rebasing at first payload.
+                    syn_anchor = raw_sequence + 1
+                    (server_segments if direction == "server" else client_segments).append(
+                        TcpSegment(
+                            flow.stream_id,
+                            syn_anchor,
+                            b"",
+                            capture_order,
+                        )
+                    )
 
                 payload = bytes(tcp.payload)
                 if payload:
-                    anchor_key = (stream_id, direction)
+                    anchor_key = (flow.stream_id, direction)
                     anchor = sequence_anchors.get(anchor_key)
                     if anchor is None:
-                        sequence = raw_sequence
+                        sequence = raw_sequence + (1 if flags & 0x02 else 0)
                     else:
                         base = anchor & ~0xFFFFFFFF
                         candidates = (
@@ -262,37 +384,57 @@ def _read_capture_segments(
                         anchor if anchor is not None else sequence,
                         sequence + len(payload),
                     )
-                    segment = TcpSegment(stream_id, sequence, payload)
+                    segment = TcpSegment(
+                        flow.stream_id,
+                        sequence,
+                        payload,
+                        capture_order,
+                    )
                     if direction == "server":
                         server_segments.append(segment)
                     else:
                         client_segments.append(segment)
                 if flags & 0x04:
-                    active_streams.pop(connection, None)
-                    initial_syn_sequences.pop(connection, None)
-                    fin_directions.pop(connection, None)
+                    active_streams.pop(flow.connection, None)
                 elif flags & 0x01:
                     direction_bit = 1 if direction == "server" else 2
-                    finished = fin_directions.get(connection, 0) | direction_bit
+                    finished = flow.fin_directions | direction_bit
                     if finished == 3:
-                        active_streams.pop(connection, None)
-                        initial_syn_sequences.pop(connection, None)
-                        fin_directions.pop(connection, None)
+                        active_streams.pop(flow.connection, None)
                     else:
-                        fin_directions[connection] = finished
+                        flow.fin_directions = finished
         except (OSError, ValueError) as error:
             raise ProtocolDecodeError(f"Scapy failed while reading {pcap.name}: {error}") from error
         finally:
             reader.close()
-    return server_segments, client_segments, protocol_counts
+    return (
+        server_segments,
+        client_segments,
+        protocol_counts,
+        {stream_id: flow.metadata() for stream_id, flow in flows.items()},
+    )
 
 
 def _read_server_segments(pcap: Path) -> list[TcpSegment]:
-    return _read_capture_segments((pcap,))[0]
+    profile = load_compatibility_profile()
+    server, _client, _counts, flows = _read_capture_segments((pcap,), profile)
+    known = {
+        stream_id
+        for stream_id, flow in flows.items()
+        if profile.is_known_service_port(flow.server_port)
+    }
+    return [segment for segment in server if segment.stream_id in known]
 
 
 def _read_client_segments(pcap: Path) -> list[TcpSegment]:
-    return _read_capture_segments((pcap,))[1]
+    profile = load_compatibility_profile()
+    _server, client, _counts, flows = _read_capture_segments((pcap,), profile)
+    known = {
+        stream_id
+        for stream_id, flow in flows.items()
+        if profile.is_known_service_port(flow.server_port)
+    }
+    return [segment for segment in client if segment.stream_id in known]
 
 
 def reassemble_server_streams(pcap: Path) -> tuple[TcpReassembly, ...]:
@@ -352,6 +494,25 @@ def _reassemble_segments(segments: list[TcpSegment]) -> tuple[TcpReassembly, ...
                 segment_count=len(stream_segments),
                 gap_bytes=span - covered_bytes,
                 conflict_bytes=conflicts,
+                segment_spans=tuple(
+                    TcpSegmentSpan(
+                        start=segment.sequence - sequence_start,
+                        end=(
+                            segment.sequence
+                            - sequence_start
+                            + len(segment.payload)
+                        ),
+                        capture_order=segment.capture_order,
+                    )
+                    for segment in sorted(
+                        stream_segments,
+                        key=lambda item: (
+                            item.capture_order,
+                            item.sequence,
+                        ),
+                    )
+                    if segment.payload and segment.capture_order > 0
+                ),
             )
         )
     return tuple(streams)
@@ -369,6 +530,7 @@ def decompress_mppc(
     emitted = 0
     output = bytearray()
     block_count = 0
+    block_boundaries: list[MPPCBlockBoundary] = []
     error: str | None = None
 
     def check_output_limit() -> None:
@@ -401,6 +563,12 @@ def decompress_mppc(
                         reader.take(padding)
                     output.extend(history[emitted:])
                     block_count += 1
+                    block_boundaries.append(
+                        MPPCBlockBoundary(
+                            compressed_end=reader.position // 8,
+                            decompressed_end=len(output),
+                        )
+                    )
                     if len(history) == 8192:
                         history.clear()
                         emitted = 0
@@ -466,6 +634,7 @@ def decompress_mppc(
         block_count=block_count,
         bits_consumed=reader.position,
         error=error,
+        block_boundaries=tuple(block_boundaries),
     )
 
 
@@ -569,7 +738,7 @@ def _plaintext_boundaries(data: bytes) -> tuple[tuple[int, int], ...]:
     return tuple(boundaries)
 
 
-def decode_server_stream(reassembly: TcpReassembly) -> DecodedServerStream:
+def decode_server_stream(reassembly: TcpReassembly, profile: CompatibilityProfile | None = None) -> DecodedServerStream:
     if reassembly.gap_bytes or reassembly.conflict_bytes:
         problems = []
         if reassembly.gap_bytes:
@@ -593,7 +762,9 @@ def decode_server_stream(reassembly: TcpReassembly) -> DecodedServerStream:
     )
     confident_whole_plaintext = (
         bool(whole_plaintext.frames)
-        and whole_plaintext.frames[0].type_id in {1, 68}
+        # A profile handshake id is preferred, but a complete compact stream
+        # is still eligible for content fallback when that id was renumbered.
+        and whole_plaintext.frames[0].type_id >= 0
         and whole_plaintext.error is None
         and whole_plaintext.partial is None
         and whole_plaintext.consumed == len(reassembly.payload)
@@ -627,12 +798,12 @@ def decode_server_stream(reassembly: TcpReassembly) -> DecodedServerStream:
         (
             index
             for index, (_boundary, type_id) in enumerate(plaintext_boundaries)
-            if type_id == 2
+            if type_id in (profile.key_exchange_type_ids if profile else {2})
         ),
         None,
     )
     if first_key_exchange is None:
-        candidate_boundaries = (0,)
+        candidate_boundaries = (0, *[boundary for boundary, _ in plaintext_boundaries])
     else:
         candidate_boundaries = (
             *(
@@ -664,10 +835,7 @@ def decode_server_stream(reassembly: TcpReassembly) -> DecodedServerStream:
             best = (score, boundary, mppc, parsed)
 
     if best is None:
-        confident_plaintext = bool(whole_plaintext.frames) and whole_plaintext.frames[0].type_id in {
-            1,
-            68,
-        }
+        confident_plaintext = bool(whole_plaintext.frames) and whole_plaintext.frames[0].type_id >= 0
         if reassembly.payload and not confident_plaintext:
             return DecodedServerStream(
                 reassembly=reassembly,
@@ -709,14 +877,12 @@ def decode_server_stream(reassembly: TcpReassembly) -> DecodedServerStream:
         frames=plaintext.frames + compressed_frames.frames,
         partial_frame=compressed_frames.partial,
         decode_error=decode_error,
+        mppc_block_boundaries=mppc.block_boundaries,
     )
 
 
 def decode_server_capture(pcap: Path) -> tuple[DecodedServerStream, ...]:
-    return tuple(
-        decode_server_stream(reassembly)
-        for reassembly in reassemble_server_streams(pcap)
-    )
+    return decode_capture_set((pcap,))[0]
 
 
 def decode_client_stream(reassembly: TcpReassembly) -> DecodedClientStream:
@@ -738,35 +904,205 @@ def decode_client_stream(reassembly: TcpReassembly) -> DecodedClientStream:
 
 
 def decode_client_capture(pcap: Path) -> tuple[DecodedClientStream, ...]:
-    return tuple(
-        decode_client_stream(reassembly)
-        for reassembly in reassemble_client_streams(pcap)
-    )
+    return decode_capture_set((pcap,))[1]
+
+
+def _reassemble_by_stream(
+    segments: list[TcpSegment],
+) -> tuple[dict[int, TcpReassembly], dict[int, str]]:
+    grouped: dict[int, list[TcpSegment]] = defaultdict(list)
+    for segment in segments:
+        grouped[segment.stream_id].append(segment)
+    streams: dict[int, TcpReassembly] = {}
+    errors: dict[int, str] = {}
+    for stream_id, stream_segments in sorted(grouped.items()):
+        try:
+            streams[stream_id] = _reassemble_segments(stream_segments)[0]
+        except ProtocolDecodeError as error:
+            errors[stream_id] = str(error)
+    return streams, errors
+
+
+def _has_frame_type(frames: Sequence[CompactFrame], type_ids: frozenset[int]) -> bool:
+    return any(frame.type_id in type_ids for frame in frames)
+
+
+def _looks_like_content_auth(frames: Sequence[CompactFrame]) -> bool:
+    identities: set[bytes] = set()
+    for frame in frames:
+        payload = frame.payload
+        try:
+            length, offset = read_compact_uint(payload, 0)
+            if not length or offset + length > len(payload):
+                continue
+            candidate = payload[offset : offset + length]
+        except (EOFError, ProtocolDecodeError):
+            continue
+        if re.fullmatch(rb"[A-Za-z0-9_.-]{2,64}\$[A-Za-z0-9_.-]{2,64}@[A-Za-z0-9_.-]{2,64}", candidate):
+            identities.add(candidate)
+    return len(identities) == 1
+
+
+def _looks_like_content_business(frames: Sequence[CompactFrame]) -> bool:
+    for frame in frames:
+        payloads = [frame.payload]
+        try:
+            length, offset = read_compact_uint(frame.payload, 0)
+            if length >= 2 and offset + length == len(frame.payload):
+                payloads.append(frame.payload[offset + 2 : offset + length])
+        except (EOFError, ProtocolDecodeError):
+            pass
+        for payload in payloads:
+            parsed = parse_protobuf(payload)
+            if not parsed.complete:
+                continue
+            details = protobuf_bytes(parsed, 2) or protobuf_bytes(parsed, 4)
+            if (
+                protobuf_varints(parsed, 32)
+                and details
+                and all(
+                    (nested := parse_protobuf(item)).complete
+                    and bool(protobuf_varints(nested, 1))
+                    and protobuf_varints(nested, 1)[0] > 0
+                    for item in details
+                )
+            ):
+                return True
+            lottery = protobuf_bytes(parsed, 7)
+            if (
+                protobuf_varints(parsed, 2) == (1,)
+                and (not protobuf_varints(parsed, 3) or protobuf_varints(parsed, 3) == (0,))
+                and lottery
+                and all(
+                    (nested := parse_protobuf(item)).complete
+                    and bool(protobuf_varints(nested, 1))
+                    and protobuf_varints(nested, 1)[0] > 0
+                    and bool(protobuf_varints(nested, 5))
+                    for item in lottery
+                )
+            ):
+                return True
+            shot_values = list(protobuf_varints(parsed, 6))
+            for packed in protobuf_bytes(parsed, 6):
+                position = 0
+                try:
+                    while position < len(packed):
+                        value, position = read_protobuf_varint(packed, position)
+                        shot_values.append(value)
+                except (EOFError, ProtocolDecodeError):
+                    shot_values = []
+                    break
+            triples = [shot_values[index : index + 3] for index in range(0, len(shot_values), 3)]
+            if (
+                protobuf_varints(parsed, 2) == (1,)
+                and (not protobuf_varints(parsed, 3) or protobuf_varints(parsed, 3) == (0,))
+                and len(shot_values) >= 6
+                and len(shot_values) % 3 == 0
+                and len({triple[0] for triple in triples}) == len(triples)
+                and all(
+                    0 < triple[0] <= 0x7FFFFFFF
+                    and 0 <= triple[1] <= 0x7FFFFFFF
+                    and 0 <= triple[2] <= 0x7FFFFFFF
+                    for triple in triples
+                )
+            ):
+                return True
+    return False
 
 
 def decode_capture_set(
     pcaps: Sequence[Path],
+    profile: CompatibilityProfile | None = None,
 ) -> tuple[
     tuple[DecodedServerStream, ...],
     tuple[DecodedClientStream, ...],
     Counter[str],
 ]:
     """Decode a chronologically ordered set of capture files in one pass."""
-    server_segments, client_segments, protocol_counts = _read_capture_segments(pcaps)
-    server_streams = tuple(
-        decode_server_stream(reassembly)
-        for reassembly in _reassemble_segments(server_segments)
+    profile = profile or load_compatibility_profile()
+    server_segments, client_segments, protocol_counts, flows = _read_capture_segments(
+        pcaps, profile
     )
-    client_streams = tuple(
-        decode_client_stream(reassembly)
-        for reassembly in _reassemble_segments(client_segments)
-    )
-    return server_streams, client_streams, protocol_counts
+    server_reassemblies, server_errors = _reassemble_by_stream(server_segments)
+    client_reassemblies, client_errors = _reassemble_by_stream(client_segments)
+    selected_server: list[DecodedServerStream] = []
+    selected_client: list[DecodedClientStream] = []
+
+    for stream_id, flow in sorted(flows.items()):
+        known_port = profile.is_known_service_port(flow.server_port)
+        stream_error = server_errors.get(stream_id) or client_errors.get(stream_id)
+        if known_port and stream_error:
+            raise ProtocolDecodeError(
+                f"target TCP stream {stream_id} could not be reassembled: {stream_error}"
+            )
+        if stream_error:
+            continue
+
+        server = (
+            decode_server_stream(server_reassemblies[stream_id], profile)
+            if stream_id in server_reassemblies
+            else None
+        )
+        client = (
+            decode_client_stream(client_reassemblies[stream_id])
+            if stream_id in client_reassemblies
+            else None
+        )
+        profile_signature_match = bool(
+            client is not None and server is not None
+            and _has_frame_type(client.frames, profile.client_authentication_type_ids)
+            and _has_frame_type(server.frames, profile.server_handshake_type_ids)
+        )
+        content_signature_match = bool(
+            client is not None and server is not None
+            and _looks_like_content_auth(client.frames)
+            and _looks_like_content_business(server.frames)
+        )
+        protocol_match = bool(
+            flow.handshake_complete
+            and server is not None
+            and client is not None
+            and server.decode_error is None
+            and client.decode_error is None
+            and server.partial_frame is None
+            and client.partial_frame is None
+            and (profile_signature_match or content_signature_match)
+        )
+        if not known_port and not protocol_match:
+            continue
+
+        locator = "profile_port" if known_port else "protocol_signature"
+        if server is not None:
+            selected_server.append(
+                replace(
+                    server,
+                    reassembly=replace(
+                        server.reassembly,
+                        server_port=flow.server_port,
+                        locator=locator,
+                    ),
+                )
+            )
+        if client is not None:
+            selected_client.append(
+                replace(
+                    client,
+                    reassembly=replace(
+                        client.reassembly,
+                        server_port=flow.server_port,
+                        locator=locator,
+                    ),
+                )
+            )
+    return tuple(selected_server), tuple(selected_client), protocol_counts
 
 
-def count_capture_protocols(pcaps: Sequence[Path]) -> Counter[str]:
+def count_capture_protocols(
+    pcaps: Sequence[Path],
+    profile: CompatibilityProfile | None = None,
+) -> Counter[str]:
     """Return native Scapy packet-layer counts for a capture set."""
-    _server, _client, counts = _read_capture_segments(pcaps)
+    _server, _client, counts, _flows = _read_capture_segments(pcaps, profile)
     return counts
 
 

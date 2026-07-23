@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import YKACompatibility
 import YKAReport
 from YKAReport import (
     CAPTURE_CLEANUP_FILENAME,
@@ -43,6 +44,53 @@ def test_analyze_session_persists_final_report(tmp_path: Path) -> None:
     assert json.dumps(report, ensure_ascii=False)
     assert (session / REPORT_FILENAME).is_file()
     assert report["persistence"]["state"] == "final"
+
+
+def test_analyze_session_forwards_frozen_config_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    session = tmp_path / "session"
+    snapshot = object()
+    calls = []
+
+    def build(path: Path, *, config_snapshot=None):
+        calls.append((path, config_snapshot))
+        return {"ok": True}
+
+    monkeypatch.setattr(YKAReport, "build_session_report", build)
+
+    assert analyze_session(session, config_snapshot=snapshot) == {"ok": True}
+    assert calls == [(session, snapshot)]
+
+
+def test_missing_signed_configuration_is_explicit_generic_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    session = _empty_session(tmp_path / "session")
+    monkeypatch.setattr(
+        YKACompatibility,
+        "load_config_snapshot_or_none",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        YKAReport,
+        "load_config_snapshot_or_none",
+        lambda: None,
+    )
+
+    report = build_session_report(session)
+    compatibility = report["protocol_decode"]["compatibility_profile"]
+
+    assert compatibility["profile_id"] == "generic-content-fallback"
+    assert compatibility["profile_mode"] == "generic_content_fallback"
+    assert compatibility["resolution_mode"] == "generic_content_fallback"
+    assert compatibility["configuration"]["source"] == "generic"
+    assert (
+        compatibility["configuration"]["status"]
+        == "signed_configuration_unavailable"
+    )
 
 
 def test_live_coverage_is_lightweight_and_persisted(tmp_path: Path) -> None:

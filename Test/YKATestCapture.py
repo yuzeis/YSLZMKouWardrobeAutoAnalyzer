@@ -255,7 +255,7 @@ def test_capture_manager_retries_initial_start(monkeypatch: pytest.MonkeyPatch, 
     assert manager.failed is False
 
 
-def test_capture_segments_are_retained_until_export(tmp_path: Path) -> None:
+def test_broad_capture_segments_are_bounded_by_ring(tmp_path: Path) -> None:
     manager = capture.CaptureManager(
         tmp_path,
         "dumpcap",
@@ -273,16 +273,20 @@ def test_capture_segments_are_retained_until_export(tmp_path: Path) -> None:
     manager._enforce_capture_ring()
 
     files = sorted(pcap_dir.glob("*.pcapng"))
-    assert len(files) == capture.CAPTURE_RING_FILES + 2
+    assert len(files) == capture.CAPTURE_RING_FILES
     assert [path.name for path in files] == [
-        "game-9227-segment-0001.pcapng",
-        "game-9227-segment-0002.pcapng",
         "game-9227-segment-0003.pcapng",
         "game-9227-segment-0004.pcapng",
+        "game-9227-segment-0005.pcapng",
+        "game-9227-segment-0006.pcapng",
+        "game-9227-segment-0007.pcapng",
+        "game-9227-segment-0008.pcapng",
+        "game-9227-segment-0009.pcapng",
+        "game-9227-segment-0010.pcapng",
     ]
 
 
-def test_dumpcap_rotation_has_no_file_count_ring(
+def test_dumpcap_rotation_has_bounded_file_count_ring(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -313,7 +317,7 @@ def test_dumpcap_rotation_has_no_file_count_ring(
 
     manager._start_dumpcap()
 
-    assert f"files:{capture.CAPTURE_RING_FILES}" not in captured_arguments
+    assert f"files:{capture.CAPTURE_RING_FILES}" in captured_arguments
     assert f"filesize:{capture.CAPTURE_FILESIZE_KIB}" in captured_arguments
     assert manager.log_stream is not None
     manager.log_stream.close()
@@ -393,7 +397,7 @@ def test_scapy_writer_open_is_atomic_with_ring_cleanup(
     assert errors == []
     assert manager.current_capture_path is not None
     assert manager.current_capture_path.is_file()
-    assert len(list(pcap_dir.glob("*.pcapng"))) == capture.CAPTURE_RING_FILES + 1
+    assert len(list(pcap_dir.glob("*.pcapng"))) == capture.CAPTURE_RING_FILES
 
 
 def _pcapng_block(block_type: int, body: bytes) -> bytes:

@@ -14,7 +14,7 @@ def test_generic_flow_does_not_count_as_captured_game_traffic() -> None:
     )
 
     assert semantic == "run"
-    assert label == "尚未抓到 · 等待 9227 游戏流量"
+    assert label == "尚未抓到 · 等待目标游戏流量"
     assert has_packets is False
 
 
@@ -29,7 +29,7 @@ def test_scapy_packet_count_is_shown_exactly() -> None:
     )
 
     assert semantic == "ok"
-    assert label == "已抓到 · 23 个 9227 端口包"
+    assert label == "已抓到 · 23 个网络包，正在识别游戏协议"
     assert has_packets is True
 
 
@@ -44,7 +44,7 @@ def test_dumpcap_activity_is_reported_without_fake_packet_count() -> None:
     )
 
     assert semantic == "ok"
-    assert label == "已抓到 · 检测到 9227 端口数据"
+    assert label == "已抓到 · 正在识别游戏协议"
     assert has_packets is True
 
 
@@ -58,5 +58,5 @@ def test_stopped_session_warns_when_no_game_traffic_was_captured() -> None:
     )
 
     assert semantic == "warn"
-    assert label == "未抓到 · 本次没有 9227 端口流量"
+    assert label == "未识别 · 本次没有匹配的游戏协议流"
     assert has_packets is False

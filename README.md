@@ -2,10 +2,11 @@
 
 Windows PC 版《以闪亮之名》只读流量采集、衣柜分析与微信小程序导入数据生成工具。
 
-- 版本：`ver1.0-beta1`
+- 版本：`ver1.1`
 - 代号：`Gnadenfülle`
 - 平台：Windows 10/11 x64
 - 官方发行：完全免费、公开源代码
+- 官方源码仓库：[yuzeis/YSLZMKouWardrobeAutoAnalyzer](https://github.com/yuzeis/YSLZMKouWardrobeAutoAnalyzer)
 
 程序通过 Scapy 与 Npcap 被动读取本机游戏流量，不抽卡、不注入或重放请求、
 不操作微信，也不上传数据。正常启动时会先请求管理员权限。原始 PCAP 与实时更新的

@@ -19,8 +19,19 @@ from YKABusiness import (
     GP_FASHION_RENEW,
     GP_LUCKYDRAW_OPERATE_RE,
     GP_PHOTO_INFO,
+    GP_PHOTO_OPERATE_RE,
     TARGET_GAME_MESSAGE_IDS,
     analyze_game_messages,
+)
+from YKACompatibility import (
+    SignedConfigurationUnavailable,
+    generic_content_profile,
+    load_compatibility_profile,
+)
+from YKAConfigManager import ConfigSnapshot, load_config_snapshot_or_none
+from YKAOpcodeResolver import (
+    enforce_capture_mapping_consistency,
+    resolve_messages_with_diagnostics,
 )
 from YKACatalog import CatalogDecodeError, load_fashion_catalog
 from YKACore import (
@@ -74,11 +85,24 @@ def _read_events(path: Path) -> tuple[list[dict[str, Any]], int]:
     return events, parse_errors
 
 
-def _protocol_counts(pcap_files: list[Path]) -> tuple[Counter[str], list[str]]:
+def _analysis_profile(
+    config_snapshot: ConfigSnapshot | None,
+):
+    try:
+        return load_compatibility_profile(snapshot=config_snapshot), ""
+    except SignedConfigurationUnavailable as error:
+        return generic_content_profile(), str(error)
+
+
+def _protocol_counts(
+    pcap_files: list[Path],
+    config_snapshot: ConfigSnapshot | None = None,
+) -> tuple[Counter[str], list[str]]:
     if not pcap_files:
         return Counter(), []
     try:
-        return count_capture_protocols(pcap_files), []
+        profile, _generic_reason = _analysis_profile(config_snapshot)
+        return count_capture_protocols(pcap_files, profile), []
     except ProtocolDecodeError as error:
         return Counter(), [str(error)]
 
@@ -104,6 +128,7 @@ def _partial_gamedata_command(
 
 def _decode_game_traffic(
     pcap_files: list[Path],
+    config_snapshot: ConfigSnapshot | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], list[str]]:
     outer_counts: Counter[int] = Counter()
     streams_summary: list[dict[str, Any]] = []
@@ -116,27 +141,55 @@ def _decode_game_traffic(
     client_outer_counts: Counter[int] = Counter()
     client_candidate_counts: Counter[int] = Counter()
     client_streams_summary: list[dict[str, Any]] = []
+    client_messages_all = []
     wardrobe_ack_cursors: dict[tuple[str, int], list[int]] = defaultdict(list)
+    ambiguous_observed_opcodes: set[int] = set()
 
     source_pcaps = list(pcap_files)
     source_paths = [str(path) for path in source_pcaps]
     pcap_label = source_paths[0] if len(source_paths) == 1 else f"<capture set: {len(source_paths)} files>"
     identity_source = "\0".join(str(path.resolve()) for path in source_pcaps)
     capture_id = "capture-set:" + hashlib.sha256(identity_source.encode("utf-8")).hexdigest()[:16]
+    compatibility_profile: dict[str, Any] | None = None
+    profile, generic_reason = _analysis_profile(config_snapshot)
+    generic_fallback = bool(generic_reason)
+    compatibility_profile = {
+        "profile_id": profile.profile_id,
+        "parser_version": profile.parser_version,
+        "catalog_bundle_id": profile.catalog_bundle_id,
+        "known_service_ports": sorted(profile.service_ports),
+        "profile_mode": (
+            "generic_content_fallback"
+            if generic_fallback
+            else "signed_configuration"
+        ),
+    }
+    if config_snapshot is not None:
+        compatibility_profile["configuration"] = (
+            config_snapshot.audit_metadata()
+        )
+    elif generic_fallback:
+        compatibility_profile["configuration"] = {
+            "source": "generic",
+            "status": "signed_configuration_unavailable",
+            "reason": generic_reason,
+        }
     try:
-        streams, client_streams, _native_protocol_counts = decode_capture_set(source_pcaps)
+        streams, client_streams, _native_protocol_counts = decode_capture_set(
+            source_pcaps, profile
+        )
     except ProtocolDecodeError as error:
         errors.append(f"{pcap_label}: {error}")
         streams, client_streams = (), ()
     for stream in streams:
             outer_counts.update(frame.type_id for frame in stream.frames)
-            stream_messages = list(
-                iter_game_messages(
-                    stream,
-                    direct_ids=TARGET_GAME_MESSAGE_IDS,
-                    capture_id=capture_id,
-                )
+            resolution = resolve_messages_with_diagnostics(
+                stream, profile, capture_id=capture_id
             )
+            ambiguous_observed_opcodes.update(
+                resolution.ambiguous_observed_opcodes
+            )
+            stream_messages = list(resolution.messages)
             stream_candidate_messages = [
                 message
                 for message in stream_messages
@@ -157,6 +210,8 @@ def _decode_game_traffic(
                 "source_pcaps": source_paths,
                 "capture_id": capture_id,
                 "tcp_stream": stream.reassembly.stream_id,
+                "server_port": stream.reassembly.server_port,
+                "flow_locator": stream.reassembly.locator,
                 "tcp_segments": stream.reassembly.segment_count,
                 "tcp_payload_bytes": len(stream.reassembly.payload),
                 "tcp_gap_bytes": stream.reassembly.gap_bytes,
@@ -212,21 +267,23 @@ def _decode_game_traffic(
                     )
     for stream in client_streams:
         client_outer_counts.update(frame.type_id for frame in stream.frames)
-        client_messages = list(iter_game_messages(stream, capture_id=capture_id))
+        client_resolution = resolve_messages_with_diagnostics(
+            stream, profile, capture_id=capture_id
+        )
+        ambiguous_observed_opcodes.update(
+            client_resolution.ambiguous_observed_opcodes
+        )
+        client_messages = list(client_resolution.messages)
+        client_messages_all.extend(client_messages)
         client_candidate_counts.update(message.command_id for message in client_messages)
-        for message in client_messages:
-            if message.command_id != GP_FASHION_INFO_ACK:
-                continue
-            parsed_ack = parse_protobuf(message.payload)
-            cursors = protobuf_varints(parsed_ack, 2)
-            if parsed_ack.complete and cursors:
-                wardrobe_ack_cursors[(capture_id, stream.reassembly.stream_id)].append(int(cursors[0]))
         client_streams_summary.append(
             {
                 "pcap": pcap_label,
                 "source_pcaps": source_paths,
                 "capture_id": capture_id,
                 "tcp_stream": stream.reassembly.stream_id,
+                "server_port": stream.reassembly.server_port,
+                "flow_locator": stream.reassembly.locator,
                 "tcp_segments": stream.reassembly.segment_count,
                 "tcp_payload_bytes": len(stream.reassembly.payload),
                 "tcp_gap_bytes": stream.reassembly.gap_bytes,
@@ -243,12 +300,81 @@ def _decode_game_traffic(
                 f"{stream.reassembly.stream_id}: {stream.decode_error}"
             )
 
+    server_consistency = enforce_capture_mapping_consistency(messages)
+    client_consistency = enforce_capture_mapping_consistency(client_messages_all)
+    ambiguous_observed_opcodes.update(
+        server_consistency.ambiguous_observed_opcodes
+    )
+    ambiguous_observed_opcodes.update(
+        client_consistency.ambiguous_observed_opcodes
+    )
+    messages = list(server_consistency.messages)
+    client_messages_all = list(client_consistency.messages)
+    candidate_message_counts = Counter(
+        message.command_id for message in messages
+        if message.source == "gamedata_candidate"
+    )
+    direct_message_counts = Counter(
+        message.command_id for message in messages if message.source == "direct"
+    )
+    client_candidate_counts = Counter(
+        message.command_id for message in client_messages_all
+    )
+    for message in client_messages_all:
+        if message.command_id != GP_FASHION_INFO_ACK:
+            continue
+        parsed_ack = parse_protobuf(message.payload)
+        cursors = protobuf_varints(parsed_ack, 2)
+        if parsed_ack.complete and cursors:
+            wardrobe_ack_cursors[(capture_id, message.stream_id)].append(
+                int(cursors[0])
+            )
+    if ambiguous_observed_opcodes:
+        errors.append(
+            "ambiguous observed opcode mapping: "
+            + ", ".join(str(opcode) for opcode in sorted(ambiguous_observed_opcodes))
+        )
+
     business = analyze_game_messages(
         messages,
         wardrobe_ack_cursors=dict(wardrobe_ack_cursors),
-        lottery_catalog=_load_lottery_pool_catalog(),
-        photo_catalog=_load_photo_catalog(),
+        lottery_catalog=_load_lottery_pool_catalog(config_snapshot),
+        photo_catalog=_load_photo_catalog(config_snapshot),
     )
+    if compatibility_profile is not None:
+        all_messages = list(messages)
+        compatibility_profile["resolution_mode"] = (
+            "generic_content_fallback"
+            if generic_fallback
+            else (
+                "content_fallback"
+                if any(
+                    m.resolution_mode == "content_fallback"
+                    for m in all_messages
+                )
+                else "profile"
+            )
+        )
+        compatibility_profile["observed_opcodes"] = sorted({
+            m.observed_opcode for m in all_messages if m.observed_opcode is not None
+        })
+        compatibility_profile["observed_outer_opcodes"] = sorted({
+            m.observed_wrapper_opcode for m in all_messages if m.observed_wrapper_opcode is not None
+        })
+        compatibility_profile["observed_opcode_map"] = [
+            {
+                "semantic": m.command_id,
+                "outer_opcode": m.observed_wrapper_opcode,
+                "inner_opcode": m.observed_opcode,
+                "resolution_mode": m.resolution_mode,
+            }
+            for m in all_messages
+            if m.observed_opcode is not None
+        ]
+        compatibility_profile["ambiguous_observed_opcodes"] = sorted(
+            ambiguous_observed_opcodes
+        )
+        compatibility_profile["resolution_sources"] = sorted({m.source for m in all_messages})
     data_coverage = business["data_coverage"]
     wardrobe = data_coverage["wardrobe_presence"]
     selected_wardrobe_connection = (
@@ -308,7 +434,24 @@ def _decode_game_traffic(
         data_coverage["photo_info"]["completeness"] = False
         data_coverage["photo_info"]["partial_direct_frame"] = True
 
-    if errors and not streams_summary:
+    shot_connections = {
+        (message.capture_id, message.stream_id)
+        for message in messages
+        if message.command_id == GP_PHOTO_OPERATE_RE
+    }
+    partial_shot_connections = {
+        (capture_id, stream_id)
+        for capture_id, stream_id, command_id in partial_targets
+        if command_id is None or command_id == GP_PHOTO_OPERATE_RE
+    }
+    if partial_shot_connections and (not shot_connections or bool(shot_connections & partial_shot_connections)):
+        data_coverage["shot_src_unlocks"]["status"] = "partial"
+        data_coverage["shot_src_unlocks"]["snapshot_complete"] = False
+        data_coverage["shot_src_unlocks"]["partial_direct_frame"] = True
+
+    if ambiguous_observed_opcodes:
+        decode_status = "decode_error"
+    elif errors and not streams_summary:
         decode_status = "decode_error"
     elif not streams_summary:
         decode_status = "unobserved"
@@ -318,6 +461,7 @@ def _decode_game_traffic(
         decode_status = "decoded"
     protocol_decode = {
         "status": decode_status,
+        "compatibility_profile": compatibility_profile,
         "streams": streams_summary,
         "outer_frame_counts": {
             str(type_id): count
@@ -385,7 +529,11 @@ def _bundled_pool_catalog_candidates() -> list[Path]:
     ]
 
 
-def _load_photo_catalog() -> dict[str, Any]:
+def _load_photo_catalog(
+    config_snapshot: ConfigSnapshot | None = None,
+) -> dict[str, Any]:
+    if config_snapshot is not None:
+        return config_snapshot.pool_catalog
     candidates = _bundled_pool_catalog_candidates()
     for path in candidates:
         if not path.is_file():
@@ -396,7 +544,11 @@ def _load_photo_catalog() -> dict[str, Any]:
     return {}
 
 
-def _load_lottery_pool_catalog() -> dict[str, Any]:
+def _load_lottery_pool_catalog(
+    config_snapshot: ConfigSnapshot | None = None,
+) -> dict[str, Any]:
+    if config_snapshot is not None:
+        return config_snapshot.pool_catalog
     candidates = [
         *_bundled_pool_catalog_candidates(),
         RUNTIME_DIR / "lottery_pool_catalog.json",
@@ -737,8 +889,13 @@ def cleanup_session_capture_files(
     return result
 
 
-def build_session_report(session_dir: Path) -> dict[str, Any]:
+def build_session_report(
+    session_dir: Path,
+    *,
+    config_snapshot: ConfigSnapshot | None = None,
+) -> dict[str, Any]:
     session_dir = session_dir.resolve()
+    resolved_snapshot = config_snapshot or load_config_snapshot_or_none()
     with _REPORT_BUILD_LOCK:
         events, event_parse_errors = _read_events(session_dir / "events.jsonl")
         pcap_files = sorted((session_dir / "pcap").glob("*.pcapng"))
@@ -747,8 +904,14 @@ def build_session_report(session_dir: Path) -> dict[str, Any]:
         ]
         flows = [event for event in events if event.get("type") == "network_flow"]
         open_files = [event for event in events if event.get("type") == "open_file"]
-        protocols, capture_errors = _protocol_counts(pcap_files)
-        protocol_decode, data_coverage, decode_errors = _decode_game_traffic(pcap_files)
+        protocols, capture_errors = _protocol_counts(
+            pcap_files,
+            resolved_snapshot,
+        )
+        protocol_decode, data_coverage, decode_errors = _decode_game_traffic(
+            pcap_files,
+            resolved_snapshot,
+        )
         capture_errors.extend(decode_errors)
         report = {
             "schema_version": 3,
@@ -771,9 +934,14 @@ def build_session_report(session_dir: Path) -> dict[str, Any]:
         return _persist_report(session_dir, report, "final")
 
 
-def build_live_coverage(session_dir: Path) -> dict[str, Any]:
+def build_live_coverage(
+    session_dir: Path,
+    *,
+    config_snapshot: ConfigSnapshot | None = None,
+) -> dict[str, Any]:
     """Decode the current capture and atomically persist the live report."""
     session_dir = session_dir.resolve()
+    resolved_snapshot = config_snapshot or load_config_snapshot_or_none()
     with _REPORT_BUILD_LOCK:
         existing = read_json(session_dir / REPORT_FILENAME, {})
         if isinstance(existing, dict):
@@ -781,7 +949,10 @@ def build_live_coverage(session_dir: Path) -> dict[str, Any]:
             if isinstance(persistence, dict) and persistence.get("state") == "final":
                 return existing
         pcap_files = sorted((session_dir / "pcap").glob("*.pcapng"))
-        protocol_decode, data_coverage, decode_errors = _decode_game_traffic(pcap_files)
+        protocol_decode, data_coverage, decode_errors = _decode_game_traffic(
+            pcap_files,
+            resolved_snapshot,
+        )
         report = {
             "schema_version": 3,
             "generated_at": now_iso(),
@@ -793,6 +964,13 @@ def build_live_coverage(session_dir: Path) -> dict[str, Any]:
         return _persist_report(session_dir, report, "live")
 
 
-def analyze_session(session_dir: Path) -> dict[str, Any]:
+def analyze_session(
+    session_dir: Path,
+    *,
+    config_snapshot: ConfigSnapshot | None = None,
+) -> dict[str, Any]:
     """Compatibility alias for the persistent final report builder."""
-    return build_session_report(session_dir)
+    return build_session_report(
+        session_dir,
+        config_snapshot=config_snapshot,
+    )

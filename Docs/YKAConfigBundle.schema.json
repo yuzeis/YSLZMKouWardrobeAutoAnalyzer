@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gitee.com/yuzeis/yka/raw/main/src/parser-core/schema/YKAConfigBundle.schema.json",
+  "title": "YKA signed compatibility configuration bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "config_version",
+    "config_id",
+    "issued_at",
+    "expires_at",
+    "min_shell_version",
+    "target_package",
+    "game_version_range",
+    "content_sha256",
+    "compatibility_profiles",
+    "compact_catalog",
+    "compact_registry",
+    "pool_catalog",
+    "signature"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "config_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "config_id": {
+      "type": "string",
+      "pattern": "^[0-9]{8}T[0-9]{6}Z-v[0-9]{8}$"
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "min_shell_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "target_package": {
+      "const": "com.zulong.yslzm"
+    },
+    "game_version_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "content_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatibility_profiles",
+        "compact_catalog",
+        "compact_registry",
+        "pool_catalog"
+      ],
+      "properties": {
+        "compatibility_profiles": {
+          "$ref": "#/$defs/sha256"
+        },
+        "compact_catalog": {
+          "$ref": "#/$defs/sha256"
+        },
+        "compact_registry": {
+          "$ref": "#/$defs/sha256"
+        },
+        "pool_catalog": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "compatibility_profiles": {
+      "type": "object"
+    },
+    "compact_catalog": {
+      "type": "object"
+    },
+    "compact_registry": {
+      "type": "object"
+    },
+    "pool_catalog": {
+      "type": "object"
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "key_id",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "RSA-3072-PKCS1-v1_5-SHA256"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^yka-config-rsa3072-[0-9a-f]{16}$"
+        },
+        "value": {
+          "type": "string",
+          "contentEncoding": "base64"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9A-F]{64}$"
+    }
+  }
+}

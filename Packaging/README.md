@@ -6,7 +6,7 @@
 python -m pip install -r YKARequirementsBuildLock.txt
 python -m pytest -q -o python_files=YKATest*.py Test
 python -m PyInstaller --noconfirm --clean Packaging\YSLZMKouWardrobeAutoAnalyzer.spec
-dist\YSLZMKouWardrobeAutoAnalyzer-ver1.0-beta1-windows-x64.exe `
+dist\YSLZMKouWardrobeAutoAnalyzer-ver1.1-windows-x64.exe `
   --smoke-test --smoke-output dist\smoke.json
 ```
 

@@ -69,13 +69,32 @@ def test_startup_schedules_environment_check() -> None:
     assert app.root.after_calls == [(700, app.run_preflight)]
 
 
+def test_start_capture_freezes_signed_config_snapshot() -> None:
+    app = object.__new__(ReporterApp)
+    snapshot = object()
+    app._config_manager = mock.Mock()
+    app._config_manager.load_snapshot.return_value = snapshot
+    app._submit = mock.Mock()
+
+    app.start_capture()
+
+    assert app._capture_config_snapshot is snapshot
+    app._config_manager.load_snapshot.assert_called_once_with()
+    app._submit.assert_called_once_with(
+        "启动采集",
+        YKAApp.start_background,
+        app._show_started,
+    )
+
+
 def test_release_metadata_is_finalized() -> None:
     assert APP_NAME == "YSLZMKouWardrobeAutoAnalyzer"
-    assert APP_VERSION == "ver1.0-beta1"
+    assert APP_VERSION == "ver1.1"
     assert APP_CODENAME == "Gnadenfülle"
     assert APP_TITLE == (
-        "YSLZMKouWardrobeAutoAnalyzer ver1.0-beta1 - Gnadenfülle"
+        "YSLZMKouWardrobeAutoAnalyzer ver1.1 - Gnadenfülle"
     )
+    assert SOURCE_REPOSITORY_URL == "https://github.com/yuzeis/YSLZMKouWardrobeAutoAnalyzer"
 
 
 def test_report_persistence_smoke_covers_cleanup() -> None:
@@ -401,6 +420,7 @@ def test_live_analysis_is_backgrounded_and_single_flight(tmp_path) -> None:
     app._live_analysis_inflight = False
     app._live_analysis_last_started = 0.0
     app._live_analysis_last_revision = None
+    app._capture_config_snapshot = object()
     status = {
         "state": "capturing",
         "session_dir": str(session),
@@ -412,7 +432,10 @@ def test_live_analysis_is_backgrounded_and_single_flight(tmp_path) -> None:
     ) as build, mock.patch.object(YKAApp.threading, "Thread", _ImmediateThread):
         app._maybe_start_live_analysis(status)
         app._maybe_start_live_analysis(status)
-    build.assert_called_once_with(session.resolve())
+    build.assert_called_once_with(
+        session.resolve(),
+        config_snapshot=app._capture_config_snapshot,
+    )
     assert app._live_analysis_inflight is True
     assert app._events.qsize() == 1
     assert app._events.get_nowait()[0] == "live"

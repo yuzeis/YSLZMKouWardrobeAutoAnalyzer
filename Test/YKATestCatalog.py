@@ -17,7 +17,7 @@ def test_catalog_shape_and_content_hash():
     c = json.loads(
         (ROOT / "DatAnDict" / "YKACompactCatalog.json").read_text(encoding="utf-8")
     )
-    assert c["catalog_id"] == "00000101"
+    assert c["catalog_id"] == "00000102"
     assert len(c["ordinary"]) == 203
     assert len(c["background"]) == 126
     assert all(isinstance(v, int) for p in c["ordinary"] for pair in p["center_integer_pairs"] for v in pair)
@@ -65,6 +65,9 @@ def test_catalog_id_status_and_registry_hash():
     registry = json.loads(
         (ROOT / "DatAnDict" / "YKACompactRegistry.json").read_text(encoding="utf-8")
     )
+    assert registry["catalogs"]["00000101"] == (
+        "9349b22af4d51136df82b3a5407f21edddd7d2c40a45e7a9576459d633884ba5"
+    )
     assert registry["catalogs"][c["catalog_id"]] == c["content_sha256"]
 
 
@@ -73,7 +76,7 @@ def test_registry_rejects_duplicate_id_with_different_content(tmp_path, monkeypa
 
     out = tmp_path / "catalog.json"
     registry = tmp_path / "registry.json"
-    registry.write_text(json.dumps({"schema_version": 1, "catalogs": {"00000101": "different"}}), encoding="utf-8")
+    registry.write_text(json.dumps({"schema_version": 1, "catalogs": {"00000102": "different"}}), encoding="utf-8")
     monkeypatch.setattr(builder, "OUT", out)
     monkeypatch.setattr(builder, "REGISTRY", registry)
     try:

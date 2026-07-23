@@ -379,6 +379,14 @@ truncated(rank_combination(P, m, D), C(P, m))
 bit i = catalog 背景顺序第 i 项的状态（0 / 1）
 ```
 
+### 10.3 氪背所有权证据
+
+背景目录以“抠池记录”小程序的 `attbg` 列表为氪背白名单。当前游戏版本中可映射的每个目录项必须保存唯一的 `shot_cfg.Scene.lock_id`，并在 schema 5 中同时写入 `shot_src_ids` 与 `mapping_evidence.source_lock_ids`；两者不一致时必须拒绝目录。
+
+所有权只来自结构完整的命令 740、`op_type = 1`、protobuf field 6 三元组 `(tmp_id, count, unlock_time)`。`count > 0` 的 `tmp_id` 直接等于场景 `lock_id`，不得再经 BCFG `unlock_way` 转换。完整快照无匹配可写 `0`；快照不完整时所有权为未知并必须失败关闭或使用显式人工覆盖。
+
+命令 637 的 field 2 是头像 ID、field 3 是相框 ID。两者均不得参与背景所有权，即使数值碰巧等于 `scene_id`、`lock_id` 或历史 `unlock_way` 目标。
+
 ---
 
 ## 11. Canonical JSON
@@ -563,9 +571,9 @@ Rust 与 JS 对同一输入的 wire 逐字节比对
 
 | 项 | payload | wire（+9B 头） | T1 Base64 | T2 码元（含哨兵） |
 |---|---:|---:|---:|---:|
-| 当前账号实测（codec 3） | 394 B | 403 B | 540 | 270 |
+| 当前账号实测（codec 3） | 395 B | 404 B | 540 | 270 |
 
-同一样本的规范原始 JSON 为 9488 UTF-8 bytes；J1 为 3550 个字符。以上实测只作为尺寸基线，不属于协议固定测试向量。
+同一样本的规范原始 JSON 为 9539 UTF-8 bytes；J1 为 3572 个字符。以上实测只作为尺寸基线，不属于协议固定测试向量。
 
 对语义编码后的 payload 追加通用压缩器（gzip / zstd / Brotli）无收益，实测均反而变长。
 

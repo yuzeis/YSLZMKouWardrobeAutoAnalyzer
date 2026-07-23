@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from YKABusiness import _analyze_photo_info
+from YKABusiness import _analyze_photo_info, _analyze_photo_operate
 from YKAProtocol import GameMessage
 from YKAWechatImport import (
     ImportDataError,
@@ -101,11 +101,83 @@ def _draw_evidence(
     }
 
 
-def _write_catalog(path: Path, pools: list[dict[str, object]]) -> None:
+def _encode_varint(value: int) -> bytes:
+    v = value & 0xFFFFFFFF if value < 0 else value
+    encoded = bytearray()
+    while True:
+        byte = v & 0x7F
+        v >>= 7
+        if v:
+            encoded.append(byte | 0x80)
+        else:
+            encoded.append(byte)
+            break
+    return bytes(encoded)
+
+
+def _command740_payload(
+    *,
+    op_type: int = 1,
+    errcode: int = 0,
+    unpacked_field6: list[int] | None = None,
+    packed_field6: list[int] | None = None,
+) -> bytes:
+    pieces: list[bytes] = [
+        b"\x10" + _encode_varint(op_type),
+        b"\x18" + _encode_varint(errcode),
+    ]
+    for value in unpacked_field6 or []:
+        pieces.append(b"\x30" + _encode_varint(value))
+    if packed_field6:
+        packed = b"".join(_encode_varint(value) for value in packed_field6)
+        pieces.append(b"\x32" + _encode_varint(len(packed)) + packed)
+    return b"".join(pieces)
+
+
+def _analyze_command740(payload: bytes) -> dict[str, object]:
+    return _analyze_photo_operate(
+        [
+            GameMessage(
+                command_id=740,
+                payload=payload,
+                frame_offset=0,
+                source="direct",
+            )
+        ]
+    )
+
+
+def _background_pool(
+    key: str,
+    shot_src_ids: list[int],
+    *,
+    scene_ids: list[int] | None = None,
+    unavailable: bool = False,
+) -> dict[str, object]:
+    # scene_ids identify catalog scenes; command 740 reports those scenes'
+    # lock_id values directly through shot_src_ids.
+    pool: dict[str, object] = {
+        "key": key,
+        "att_type": "background",
+        "mapping_confidence": "verified",
+        "scene_ids": [999999] if scene_ids is None else scene_ids,
+        "shot_src_ids": shot_src_ids,
+        "mapping_evidence": {"source_lock_ids": shot_src_ids},
+    }
+    if unavailable:
+        pool["unavailable_in_installed_version"] = True
+        pool["scene_ids"] = []
+        pool["shot_src_ids"] = []
+    return pool
+
+
+def _write_catalog(
+    path: Path, pools: list[dict[str, object]], schema_version: int = 5
+) -> None:
     path.write_text(
         json.dumps(
             {
-                "schema_version": 3,
+                "schema_version": schema_version,
                 "game_catalog": {
                     "sha256": CATALOG_SHA,
                     "fashion_catalog_count": 9389,
@@ -153,6 +225,42 @@ def _generate(
     catalog = tmp_path / "catalog.json"
     _write_catalog(catalog, pools)
     return generate_import_code_from_report(_report_object(draw_count), catalog)
+
+
+def _generate_with_shot_src_unlocks(
+    tmp_path: Path,
+    pools: list[dict[str, object]],
+    shot_src_unlocks: dict[str, object],
+    *,
+    schema_version: int = 5,
+    photo_ids: list[int] | None = None,
+    photo_info: dict[str, object] | None = None,
+):
+    catalog = tmp_path / "catalog.json"
+    _write_catalog(catalog, pools, schema_version=schema_version)
+    report = _report_object(_draw_evidence({}, {}))
+    report["data_coverage"]["shot_src_unlocks"] = shot_src_unlocks
+    report["data_coverage"]["photo_info"] = (
+        _complete_photo_snapshot(photo_ids or [])
+        if photo_info is None
+        else photo_info
+    )
+    return generate_import_code_from_report(report, catalog)
+
+
+def _complete_photo_snapshot(photo_ids: list[int]) -> dict[str, object]:
+    return {
+        "status": "observed_present",
+        "completeness": True,
+        "partial_flag": 0,
+        "records": [
+            {
+                "complete": True,
+                "partial_flag": 0,
+                "photo_ids": photo_ids,
+            }
+        ],
+    }
 
 
 def _rows_by_key(code: str) -> dict[str, list[object]]:
@@ -423,3 +531,245 @@ def test_partial_or_incomplete_draw_evidence_is_never_imported(
     assert _rows_by_key(result.code)["p1"][1] == 0
     assert result.observed_draw_pool_count == 0
     assert result.unobserved_draw_count == 1
+
+
+@pytest.mark.parametrize(("op_type", "errcode"), [(2, 0), (1, 1)])
+def test_command740_op_type_and_field3_errcode_required_for_snapshot(
+    tmp_path: Path,
+    op_type: int,
+    errcode: int,
+) -> None:
+    snapshot = _analyze_command740(
+        _command740_payload(op_type=op_type, errcode=errcode)
+    )
+    assert snapshot["records"][0]["op_type"] == op_type
+    assert snapshot["records"][0]["errcode"] == errcode
+    assert snapshot["snapshot_complete"] is False
+    assert snapshot["status"] == "partial"
+
+
+def test_command740_rejects_duplicate_singular_fields() -> None:
+    payload = _command740_payload() + b"\x10\x01" + b"\x18\x00"
+    snapshot = _analyze_command740(payload)
+    assert snapshot["snapshot_complete"] is False
+    assert snapshot["status"] == "partial"
+
+
+def test_command740_rejects_non_varint_singular_fields() -> None:
+    snapshot = _analyze_command740(b"\x12\x01x" + _command740_payload(errcode=0)[2:])
+    assert snapshot["snapshot_complete"] is False
+
+
+@pytest.mark.parametrize(("field", "value"), [("op_type", True), ("errcode", 0.0)])
+def test_shot_evidence_rejects_non_integer_numeric_fields(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    snapshot = _analyze_command740(_command740_payload())
+    snapshot["records"][0][field] = value
+    with pytest.raises(ImportDataError):
+        _generate_with_shot_src_unlocks(tmp_path, [_background_pool("bg", [111])], snapshot)
+
+
+def test_command740_accepts_unpacked_and_packed_field6_and_count0_means_no_ownership(
+    tmp_path: Path,
+) -> None:
+    snapshot = _analyze_command740(
+        _command740_payload(
+            unpacked_field6=[111, 0, 10],
+            packed_field6=[222, 3, 20],
+        )
+    )
+
+    assert snapshot["status"] == "observed_present"
+    assert snapshot["snapshot_complete"] is True
+    assert snapshot["record_count"] == 2
+    assert snapshot["field6_value_count"] == 6
+    assert snapshot["owned_tmp_ids"] == [222]
+
+    result = _generate_with_shot_src_unlocks(
+        tmp_path,
+        [_background_pool("bg", [111])],
+        snapshot,
+    )
+    assert _rows_by_key(result.code)["bg"][1] == 0
+
+
+def test_command637_portrait_id_collision_does_not_mark_background_owned(
+    tmp_path: Path,
+) -> None:
+    snapshot = _analyze_command740(_command740_payload(unpacked_field6=[999, 0, 10]))
+    result = _generate_with_shot_src_unlocks(
+        tmp_path,
+        [_background_pool("bg", [111], scene_ids=[123])],
+        snapshot,
+        photo_ids=[123],
+    )
+
+    assert _rows_by_key(result.code)["bg"][1] == 0
+
+
+def test_complete_command740_proves_zero_even_if_command637_is_incomplete(
+    tmp_path: Path,
+) -> None:
+    shot_snapshot = _analyze_command740(
+        _command740_payload(unpacked_field6=[222, 0, 10])
+    )
+    incomplete_photo = _complete_photo_snapshot([])
+    incomplete_photo["completeness"] = False
+
+    result = _generate_with_shot_src_unlocks(
+        tmp_path,
+        [_background_pool("bg", [111], scene_ids=[123])],
+        shot_snapshot,
+        photo_info=incomplete_photo,
+    )
+
+    assert _rows_by_key(result.code)["bg"][1] == 0
+
+
+def test_unavailable_background_remains_zero_without_snapshots(
+    tmp_path: Path,
+) -> None:
+    incomplete_shot = {"status": "partial"}
+    result = _generate_with_shot_src_unlocks(
+        tmp_path,
+        [_background_pool("bg", [111], unavailable=True)],
+        incomplete_shot,
+        photo_info={"status": "partial"},
+    )
+
+    assert _rows_by_key(result.code)["bg"][1] == 0
+
+
+@pytest.mark.parametrize(
+    "field6_values",
+    [
+        [111, 1],  # 非3倍数
+        [111, -1, 10],  # 负值
+    ],
+)
+def test_command740_rejects_invalid_field6(
+    tmp_path: Path,
+    field6_values: list[int],
+) -> None:
+    snapshot = _analyze_command740(
+        _command740_payload(unpacked_field6=field6_values)
+    )
+
+    assert snapshot["status"] == "partial"
+    assert snapshot["snapshot_complete"] is False
+
+
+def test_command740_rejects_duplicate_tmp_id_in_field6(
+    tmp_path: Path,
+) -> None:
+    snapshot = _analyze_command740(
+        _command740_payload(
+            unpacked_field6=[111, 1, 10, 111, 2, 20],
+        )
+    )
+
+    assert snapshot["status"] == "partial"
+    assert snapshot["snapshot_complete"] is False
+    assert snapshot["duplicate_tmp_ids"] == [111]
+
+
+def test_command740_rejects_non_740_shot_src_import(
+    tmp_path: Path,
+) -> None:
+    shot_src_only_637: dict[str, object] = {
+        "status": "observed_present",
+        "snapshot_complete": True,
+        "source_command": 637,
+        "op_type": 1,
+        "duplicate_tmp_ids": [],
+        "parse_errors": [],
+        "complete_frames": 1,
+        "observed_frames": 1,
+        "record_count": 0,
+        "field6_value_count": 0,
+        "records": [{"complete": True, "triples": []}],
+    }
+
+    with pytest.raises(ImportDataError, match="命令740快照不完整"):
+        _generate_with_shot_src_unlocks(
+            tmp_path,
+            [_background_pool("bg", [111])],
+            shot_src_only_637,
+        )
+
+
+def test_malformed_command740_cannot_fall_back_to_external_ownership(
+    tmp_path: Path,
+) -> None:
+    catalog = tmp_path / "catalog.json"
+    _write_catalog(catalog, [_background_pool("bg", [111])])
+    report = _report_object(_draw_evidence({}, {}))
+    report["data_coverage"]["shot_src_unlocks"] = {"status": "partial"}
+
+    with pytest.raises(ImportDataError, match="外部背景所有权映射已禁用"):
+        generate_import_code_from_report(
+            report,
+            catalog,
+            background_ownership={"bg": True},
+        )
+
+
+def test_complete_command740_snapshot_matches_any_shot_src_id(
+    tmp_path: Path,
+) -> None:
+    snapshot = _analyze_command740(
+        _command740_payload(
+            unpacked_field6=[111, 0, 10, 222, 1, 20],
+        )
+    )
+    result = _generate_with_shot_src_unlocks(
+        tmp_path,
+        [_background_pool("bg", [222, 333])],
+        snapshot,
+    )
+
+    assert _rows_by_key(result.code)["bg"][1] == 1
+
+
+def test_schema4_background_mapping_is_not_reused_as_schema5_lock_id(
+    tmp_path: Path,
+) -> None:
+    snapshot = _analyze_command740(
+        _command740_payload(
+            unpacked_field6=[333, 1, 20],
+        )
+    )
+    with pytest.raises(ImportDataError, match="映射或所有权未知"):
+        _generate_with_shot_src_unlocks(
+            tmp_path,
+            [_background_pool("bg", [333])],
+            snapshot,
+            schema_version=4,
+        )
+
+
+def test_schema5_rejects_unlock_way_target_as_source_lock_evidence(tmp_path: Path) -> None:
+    pool = _background_pool("bg", [25571])
+    pool["mapping_evidence"] = {"source_lock_ids": [16234]}
+    snapshot = _analyze_command740(
+        _command740_payload(unpacked_field6=[16234, 1, 20])
+    )
+
+    with pytest.raises(ImportDataError, match="不是场景 lock_id"):
+        _generate_with_shot_src_unlocks(tmp_path, [pool], snapshot)
+
+
+def test_old_unlock_way_target_collision_does_not_mark_background_owned(
+    tmp_path: Path,
+) -> None:
+    snapshot = _analyze_command740(
+        _command740_payload(unpacked_field6=[16234, 1, 20])
+    )
+    result = _generate_with_shot_src_unlocks(
+        tmp_path,
+        [_background_pool("bg", [25571])],
+        snapshot,
+    )
+
+    assert _rows_by_key(result.code)["bg"][1] == 0

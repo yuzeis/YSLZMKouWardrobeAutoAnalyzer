@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import copy
 import hashlib
 import json
 import re
@@ -449,17 +450,26 @@ def _catalog(catalog: dict[str, Any]) -> _Catalog:
     )
 
 
-def load_catalog(path: Path, registry_path: Path | None = None) -> dict[str, Any]:
-    try:
-        catalog = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise CodecError(f"无法读取紧凑目录：{error}") from error
+def load_catalog(
+    path: Path | dict[str, Any],
+    registry_path: Path | dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if isinstance(path, dict):
+        catalog = copy.deepcopy(path)
+    else:
+        try:
+            catalog = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise CodecError(f"无法读取紧凑目录：{error}") from error
     view = _catalog(catalog)
     if registry_path is not None:
-        try:
-            registry = json.loads(registry_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as error:
-            raise CodecError(f"无法读取紧凑目录注册表：{error}") from error
+        if isinstance(registry_path, dict):
+            registry = copy.deepcopy(registry_path)
+        else:
+            try:
+                registry = json.loads(registry_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                raise CodecError(f"无法读取紧凑目录注册表：{error}") from error
         catalogs = registry.get("catalogs")
         if not isinstance(catalogs, dict):
             raise CodecError("紧凑目录注册表结构无效")
@@ -1037,8 +1047,8 @@ def _validate_expected_pool_keys(
 def build_import_artifacts(
     raw_json: str,
     *,
-    catalog_path: Path,
-    registry_path: Path,
+    catalog_path: Path | dict[str, Any],
+    registry_path: Path | dict[str, Any],
     target_width: int,
     expected_pool_keys: Sequence[str] | None = None,
 ) -> ImportArtifacts:

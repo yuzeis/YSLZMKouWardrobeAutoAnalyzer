@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -164,6 +165,104 @@ def _photo_snapshot_ids(photo_info: Any) -> tuple[set[int], bool]:
     return ids, True
 
 
+def _shot_src_snapshot_ids(value: Any) -> tuple[set[int], bool]:
+    if not isinstance(value, dict):
+        return set(), False
+    if (
+        value.get("status") not in {"observed_present", "observed_absent"}
+        or value.get("snapshot_observed") is not True
+        or value.get("snapshot_complete") is not True
+        or value.get("completeness") is not True
+        or type(value.get("source_command")) is not int
+        or value.get("source_command") != 740
+        or type(value.get("op_type")) is not int
+        or value.get("op_type") != 1
+        or value.get("source_field")
+        != "gp_photo_operate_re.param3 (protobuf field 6 triples)"
+        or type(value.get("observed_frames")) is not int
+        or value["observed_frames"] != 1
+        or type(value.get("complete_frames")) is not int
+        or value["complete_frames"] != 1
+        or type(value.get("record_count")) is not int
+        or value["record_count"] < 0
+        or type(value.get("field6_value_count")) is not int
+        or value["field6_value_count"] < 0
+        or value.get("duplicate_tmp_ids") != []
+        or value.get("parse_errors") != []
+    ):
+        return set(), False
+    evidence_sources = value.get("evidence_sources")
+    if (
+        value.get("evidence_level") not in {"direct", "candidate", "mixed", "other"}
+        or not isinstance(evidence_sources, list)
+        or not evidence_sources
+        or any(not isinstance(source, str) or not source for source in evidence_sources)
+    ):
+        return set(), False
+    records = value.get("records")
+    if not isinstance(records, list) or len(records) != 1:
+        return set(), False
+    ids: set[int] = set()
+    seen: set[int] = set()
+    record = records[0]
+    if (
+        not isinstance(record, dict)
+        or record.get("complete") is not True
+        or record.get("field6_error") is not False
+        or type(record.get("source_command")) is not int
+        or record.get("source_command") != 740
+        or type(record.get("source_field")) is not int
+        or record.get("source_field") != 6
+        or type(record.get("op_type")) is not int
+        or record.get("op_type") != 1
+        or (record.get("errcode") is not None and type(record.get("errcode")) is not int)
+        or record.get("errcode") not in (None, 0)
+        or type(record.get("field6_value_count")) is not int
+        or record["field6_value_count"] < 0
+    ):
+        return set(), False
+    triples = record.get("triples")
+    if not isinstance(triples, list):
+        return set(), False
+    for triple in triples:
+        if not isinstance(triple, dict):
+            return set(), False
+        tmp_id, count, unlock_time = (
+            triple.get("tmp_id"),
+            triple.get("count"),
+            triple.get("unlock_time"),
+        )
+        if (
+            type(tmp_id) is not int
+            or not 0 < tmp_id <= 0x7FFFFFFF
+            or type(count) is not int
+            or not 0 <= count <= 0x7FFFFFFF
+            or type(unlock_time) is not int
+            or not 0 <= unlock_time <= 0x7FFFFFFF
+            or tmp_id in seen
+        ):
+            return set(), False
+        seen.add(tmp_id)
+        if count > 0:
+            ids.add(tmp_id)
+    if (
+        record["field6_value_count"] != len(triples) * 3
+        or value["field6_value_count"] != len(triples) * 3
+        or value["record_count"] != len(triples)
+    ):
+        return set(), False
+    owned_summary = value.get("owned_tmp_ids")
+    if (
+        not isinstance(owned_summary, list)
+        or any(type(item) is not int or item <= 0 for item in owned_summary)
+        or len(owned_summary) != len(set(owned_summary))
+        or set(owned_summary) != ids
+        or (value["status"] == "observed_absent") != (len(triples) == 0)
+    ):
+        return set(), False
+    return ids, True
+
+
 def _positive_int_list(value: Any) -> bool:
     return isinstance(value, list) and all(
         isinstance(item, int) and not isinstance(item, bool) and item > 0
@@ -187,9 +286,9 @@ def _is_background_pool(pool: dict[str, Any]) -> bool:
     return _pool_kind(pool) in {"background", "bg", "attbg"}
 
 
-def load_pool_catalog(path: Path) -> dict[str, Any]:
-    catalog = _load_json_object(path)
-    if catalog.get("schema_version") not in {2, 3}:
+def load_pool_catalog(path: Path | dict[str, Any]) -> dict[str, Any]:
+    catalog = copy.deepcopy(path) if isinstance(path, dict) else _load_json_object(path)
+    if catalog.get("schema_version") not in {2, 3, 4, 5}:
         raise ImportDataError("不支持的卡池目录版本")
     raw_pools = catalog.get("pools")
     if not isinstance(raw_pools, list) or not raw_pools:
@@ -208,6 +307,8 @@ def load_pool_catalog(path: Path) -> dict[str, Any]:
         raise ImportDataError("卡池目录缺少游戏服装目录版本")
 
     seen: set[str] = set()
+    seen_scene_ids: set[int] = set()
+    seen_shot_src_ids: set[int] = set()
     for position, pool in enumerate(pools):
         if not isinstance(pool, dict):
             raise ImportDataError(f"卡池目录第 {position + 1} 项不是对象")
@@ -226,17 +327,51 @@ def load_pool_catalog(path: Path) -> dict[str, Any]:
                     not isinstance(scene_id, int)
                     or isinstance(scene_id, bool)
                     or scene_id <= 0
+                    or scene_id > 0x7FFFFFFF
                     for scene_id in scene_ids
                 )
                 or len(scene_ids) != len(set(scene_ids))
             ):
                 raise ImportDataError(f"背景 {key} 的 scene_ids 无效")
+            scene_overlap = seen_scene_ids.intersection(scene_ids)
+            if scene_overlap:
+                raise ImportDataError(f"背景 {key} 的 scene_ids 重复")
+            seen_scene_ids.update(scene_ids)
+            shot_src_ids = pool.get("shot_src_ids")
+            if (
+                not isinstance(shot_src_ids, list)
+                or any(
+                    not isinstance(source_id, int)
+                    or isinstance(source_id, bool)
+                    or source_id <= 0
+                    or source_id > 0x7FFFFFFF
+                    for source_id in shot_src_ids
+                )
+                or len(shot_src_ids) != len(set(shot_src_ids))
+            ):
+                raise ImportDataError(f"背景 {key} 的 shot_src_ids 无效")
+            overlap = seen_shot_src_ids.intersection(shot_src_ids)
+            if overlap:
+                raise ImportDataError(f"背景 {key} 的 shot_src_ids 重复")
+            seen_shot_src_ids.update(shot_src_ids)
             unavailable = pool.get("unavailable_in_installed_version") is True
             if unavailable:
-                if scene_ids:
-                    raise ImportDataError(f"版本缺失背景 {key} 不应包含 scene_ids")
-            elif pool.get("mapping_confidence") not in VERIFIED_MAPPING_LEVELS or not scene_ids:
+                if scene_ids or shot_src_ids:
+                    raise ImportDataError(f"版本缺失背景 {key} 不应包含场景映射")
+            elif (
+                pool.get("mapping_confidence") not in VERIFIED_MAPPING_LEVELS
+                or not scene_ids
+                or not shot_src_ids
+            ):
                 raise ImportDataError(f"背景 {key} 缺少已核验的场景映射")
+            if catalog.get("schema_version") >= 5 and not unavailable:
+                source_lock_ids = pool.get("mapping_evidence", {}).get(
+                    "source_lock_ids"
+                )
+                if source_lock_ids != shot_src_ids:
+                    raise ImportDataError(
+                        f"背景 {key} 的命令740 ID 不是场景 lock_id，拒绝加载"
+                    )
             continue
 
         lottery_pool_id = pool.get("lottery_pool_id")
@@ -512,6 +647,9 @@ def _draw_counts_for_catalog(
 def _wardrobe_evidence_from_report(
     report: dict[str, Any], frozen_game_catalog: dict[str, Any]
 ) -> WardrobeEvidence:
+    protocol_decode = report.get("protocol_decode")
+    if isinstance(protocol_decode, dict) and protocol_decode.get("status") == "decode_error":
+        raise ImportDataError("协议解码失败，拒绝生成导入码")
     coverage = report.get("data_coverage")
     if not isinstance(coverage, dict):
         raise ImportDataError("报告缺少 data_coverage")
@@ -918,7 +1056,7 @@ def validate_import_code(
 
 def generate_import_code_from_report(
     report: dict[str, Any],
-    catalog_path: Path,
+    catalog_path: Path | dict[str, Any],
     *,
     target_image_width_px: int = 261,
     background_ownership: dict[str, bool | int] | None = None,
@@ -927,6 +1065,8 @@ def generate_import_code_from_report(
     """Generate a complete WeChat import code from a validated report mapping."""
     if not isinstance(report, dict):
         raise ImportDataError("报告根节点必须是对象")
+    if background_ownership is not None:
+        raise ImportDataError("外部背景所有权映射已禁用；必须使用命令740场景锁快照")
     if (
         not isinstance(target_image_width_px, int)
         or isinstance(target_image_width_px, bool)
@@ -941,8 +1081,8 @@ def generate_import_code_from_report(
     draw_evidence = (
         coverage.get("draw_count") if isinstance(coverage, dict) else None
     )
-    photo_ids, photo_snapshot_ok = _photo_snapshot_ids(
-        coverage.get("photo_info") if isinstance(coverage, dict) else None
+    shot_ids, shot_snapshot_ok = _shot_src_snapshot_ids(
+        coverage.get("shot_src_unlocks") if isinstance(coverage, dict) else None
     )
     catalog_sha256 = str(game_catalog["sha256"]).upper()
     if evidence.catalog_sha256 != catalog_sha256:
@@ -977,20 +1117,27 @@ def generate_import_code_from_report(
         if is_background:
             background_pool_count += 1
             scene_ids = pool.get("scene_ids", [])
-            if pool.get("unavailable_in_installed_version") is True and scene_ids == []:
+            shot_src_ids = pool.get("shot_src_ids", [])
+            if (
+                pool.get("unavailable_in_installed_version") is True
+                and scene_ids == []
+                and shot_src_ids == []
+            ):
                 value = 0
             elif (
-                pool.get("mapping_confidence") in VERIFIED_MAPPING_LEVELS
+                catalog.get("schema_version") >= 5
+                and pool.get("mapping_confidence") in VERIFIED_MAPPING_LEVELS
                 and isinstance(scene_ids, list)
                 and bool(scene_ids)
+                and isinstance(shot_src_ids, list)
+                and bool(shot_src_ids)
             ):
-                if not photo_snapshot_ok:
-                    raise ImportDataError("背景照片命令637快照不完整，拒绝推导背景所有权")
-                value = int(any(scene_id in photo_ids for scene_id in scene_ids))
-            elif background_ownership is not None and pool.get("key") in background_ownership:
-                value = background_ownership[pool["key"]]
-                if value not in (0, 1, False, True):
-                    raise ImportDataError(f"背景 {pool['key']} 的所有权必须是 0/1")
+                if shot_snapshot_ok:
+                    value = int(any(src_id in shot_ids for src_id in shot_src_ids))
+                else:
+                    raise ImportDataError(
+                        "背景照片命令740快照不完整，拒绝把未知所有权写成未拥有"
+                    )
             else:
                 raise ImportDataError(f"背景 {pool.get('key', '')} 的映射或所有权未知，拒绝生成")
             records.append(ImportRecord(pool_key=pool["key"], draw_count=int(bool(value)), status_code=0, background=True))
@@ -1073,6 +1220,7 @@ def generate_import_code_from_report(
 
     ordinary_pool_count = len(records) - background_pool_count
     warnings = [
+        "氪背仅依据完整命令740快照中的场景 lock_id 判定；命令637是头像/相框数据，已明确排除。",
         "备注全部为空；逐件标记只来自完整衣柜与已核验的详情图槽位。",
         "扩裙、全扩、特姿、裙幻组合与千幻由静态色盘容量、"
         "衣柜色盘位图和服装 evolution 阶段共同推断；不可染部件不参与染色阶段判定。",

@@ -5,7 +5,18 @@ from PyInstaller.utils.hooks import collect_data_files
 
 
 project_root = Path(SPECPATH).parent
-product_name = "YSLZMKouWardrobeAutoAnalyzer-ver1.0-beta1-windows-x64"
+product_name = "YSLZMKouWardrobeAutoAnalyzer-ver1.1-windows-x64"
+required_config_files = (
+    project_root / "DatAnDict" / "YKAConfigBuiltin.json",
+    project_root / "DatAnDict" / "YKAConfigTrust.json",
+)
+missing_config_files = [
+    str(path) for path in required_config_files if not path.is_file()
+]
+if missing_config_files:
+    raise FileNotFoundError(
+        "missing signed configuration resources: " + ", ".join(missing_config_files)
+    )
 
 datas = collect_data_files("scapy", includes=["VERSION"])
 datas += [
